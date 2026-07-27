@@ -16,27 +16,39 @@ This workflow describes the lifecycle of a document from the user's upload actio
 sequenceDiagram
     participant User as Authenticated User
     participant API as Upload API
-    participant Validation as Document Service (Validation)
+    participant Validation as Document Service
     participant Storage as Storage Service
     participant MinIO as MinIO Bucket
     participant Repo as Document Repository
-    participant DB as PostgreSQL (documents table)
+    participant DB as PostgreSQL
+    participant Pipeline as AI Pipeline Service
+    participant Qdrant as Vector DB
+    participant Neo4j as Graph DB
 
-    User->>API: POST /api/v1/documents/upload (Multipart File)
-    API->>Validation: Verify size, format, empty state
-    alt Validation Failed
-        Validation-->>User: 400 Bad Request
-    end
-    Validation->>Storage: upload_file(user_id, file_stream, content_type)
-    Storage->>MinIO: put_object(key={user_id}/{uuid}_{filename})
+    User->>API: POST /api/v1/documents/upload
+    API->>Validation: Verify size, format
+    Validation->>Storage: upload_file()
+    Storage->>MinIO: put_object()
     MinIO-->>Storage: Success
-    Storage-->>Validation: Return object_key
-    Validation->>Repo: Create Document(object_key, UPLOADED)
+    Validation->>Repo: Create Document(UPLOADED)
     Repo->>DB: INSERT INTO documents
-    DB-->>Repo: Returns Document Record
-    Repo-->>Validation: Returns Document Entity
     Validation-->>API: Returns Document ID & Status
-    API-->>User: 201 Created (Upload Response)
+    API-->>User: 201 Created
+    
+    %% Background AI Pipeline
+    API-)Pipeline: asyncio.create_task(process_document)
+    Pipeline->>Repo: Update Document(PROCESSING)
+    Pipeline->>Pipeline: Parse Document
+    Pipeline->>Pipeline: Hybrid Chunking
+    Pipeline->>DB: INSERT INTO document_chunks
+    Pipeline->>Qdrant: Embed & Upsert Vectors
+    Pipeline->>Repo: Update Document(COMPLETED)
+    
+    %% Background Graph Extraction
+    Pipeline-)Neo4j: asyncio.create_task(process_chunks for Graph)
+    Neo4j->>Neo4j: LLM Entity Extraction
+    Neo4j->>Neo4j: Sync to Graph DB
+    Neo4j->>DB: Update Chunk Statuses (SYNCED)
 ```
 
 ### Document Lifecycle States
@@ -44,10 +56,10 @@ sequenceDiagram
 Documents transition through the following states (`DocumentStatus` Enum):
 
 1. **`UPLOADED`**: The document has been successfully verified, stored in MinIO, and a metadata record is created in PostgreSQL.
-2. **`PROCESSING`**: The AI pipeline has picked up the document for chunking and embedding. *(Future Phase)*
-3. **`COMPLETED`**: The AI pipeline successfully processed the document, inserting it into Qdrant and Neo4j. *(Future Phase)*
-4. **`FAILED`**: An error occurred during AI pipeline processing. *(Future Phase)*
+2. **`PROCESSING`**: The AI pipeline has picked up the document for parsing, chunking, and vector embedding.
+3. **`COMPLETED`**: The AI pipeline successfully processed the document, inserting it into Qdrant. (Graph extraction continues asynchronously).
+4. **`FAILED`**: An error occurred during AI pipeline processing.
 
 ### Storage Strategy
 - **MinIO**: Acts as the single source of truth for the raw binary files. Keys are prefixed with the `user_id` to enforce logical multi-tenancy at the storage level.
-- **PostgreSQL**: Stores relational metadata (e.g., filename, size, MIME type) and the pointer (`storage_path`) to the MinIO object.
+- **PostgreSQL**: Stores relational metadata (e.g., filename, size, MIME type) and the pointer (`storage_path`) to the MinIO object. Contains the `document_chunks` table tracking Qdrant and Neo4j sync statuses.

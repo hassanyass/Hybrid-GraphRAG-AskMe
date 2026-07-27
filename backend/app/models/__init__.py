@@ -9,7 +9,7 @@ from backend.app.models.conversation import Conversation
 from backend.app.models.document import Document, DocumentMetadata, DocumentStatus
 from backend.app.models.document_chunk import (
     DocumentChunk,
-    ExtractionStatus,
+    GraphExtractionStatus,
     GraphSyncStatus,
     VectorStatus,
 )

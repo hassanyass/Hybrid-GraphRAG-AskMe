@@ -44,7 +44,7 @@ class VectorStatus(str, enum.Enum):
     FAILED = "FAILED"          # Embedding or indexing failed
 
 
-class ExtractionStatus(str, enum.Enum):
+class GraphExtractionStatus(str, enum.Enum):
     """Tracks entity/relationship extraction from a chunk."""
 
     PENDING = "PENDING"        # Not yet processed
@@ -57,7 +57,8 @@ class GraphSyncStatus(str, enum.Enum):
     """Tracks synchronization of extracted entities to Neo4j."""
 
     PENDING = "PENDING"        # Entities not yet pushed to Neo4j
-    SYNCED = "SYNCED"          # Successfully stored in Neo4j
+    SYNCING = "SYNCING"        # Actively being synced
+    COMPLETED = "COMPLETED"    # Successfully stored in Neo4j
     FAILED = "FAILED"          # Sync to Neo4j failed
 
 
@@ -169,19 +170,29 @@ class DocumentChunk(Base):
     # ------------------------------------------------------------------
     # Neo4j Knowledge Graph Tracking (Phase 6)
     # ------------------------------------------------------------------
-    entity_extraction_status: Mapped[ExtractionStatus] = mapped_column(
-        Enum(ExtractionStatus, name="entity_extraction_status_enum", create_constraint=True),
-        default=ExtractionStatus.PENDING,
+    entity_extraction_status: Mapped[GraphExtractionStatus] = mapped_column(
+        Enum(GraphExtractionStatus, name="graph_extraction_status", create_constraint=True),
+        default=GraphExtractionStatus.PENDING,
         nullable=False,
         index=True,
         comment="Status of entity/relationship extraction from this chunk.",
     )
     graph_sync_status: Mapped[GraphSyncStatus] = mapped_column(
-        Enum(GraphSyncStatus, name="graph_sync_status_enum", create_constraint=True),
+        Enum(GraphSyncStatus, name="graph_sync_status", create_constraint=True),
         default=GraphSyncStatus.PENDING,
         nullable=False,
         index=True,
         comment="Status of synchronization to Neo4j knowledge graph.",
+    )
+    extraction_version: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        comment="Version of the extraction prompt/model used.",
+    )
+    graph_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Timestamp when the chunk was successfully synced to Neo4j.",
     )
 
     # ------------------------------------------------------------------

@@ -54,7 +54,9 @@ class Neo4jService:
         document_id: str,
         chunk_id: str,
         entities: list[dict[str, Any]],
-        relationships: list[dict[str, Any]]
+        relationships: list[dict[str, Any]],
+        document_metadata: dict[str, Any] | None = None,
+        chunk_metadata: dict[str, Any] | None = None
     ) -> None:
         """
         Synchronize a chunk's entities and relationships into the graph.
@@ -65,6 +67,9 @@ class Neo4jService:
         if not self._driver:
             raise RuntimeError("Neo4j driver is not initialized.")
             
+        doc_meta = document_metadata or {}
+        chunk_meta = chunk_metadata or {}
+            
         # We use a single transaction for atomicity per chunk
         with self._driver.session() as session:
             session.execute_write(
@@ -72,20 +77,34 @@ class Neo4jService:
                 document_id,
                 chunk_id,
                 entities,
-                relationships
+                relationships,
+                doc_meta,
+                chunk_meta
             )
             
     @staticmethod
-    def _upsert_graph_tx(tx, document_id: str, chunk_id: str, entities: list[dict[str, Any]], relationships: list[dict[str, Any]]):
+    def _upsert_graph_tx(
+        tx, 
+        document_id: str, 
+        chunk_id: str, 
+        entities: list[dict[str, Any]], 
+        relationships: list[dict[str, Any]],
+        doc_meta: dict[str, Any],
+        chunk_meta: dict[str, Any]
+    ):
         # 1. Ensure Document and Chunk nodes exist and link them
         tx.run(
             """
             MERGE (d:Document {id: $document_id})
+            SET d += $doc_meta
             MERGE (c:Chunk {id: $chunk_id})
+            SET c += $chunk_meta
             MERGE (d)-[:HAS_CHUNK]->(c)
             """,
             document_id=document_id,
-            chunk_id=chunk_id
+            chunk_id=chunk_id,
+            doc_meta=doc_meta,
+            chunk_meta=chunk_meta
         )
         
         # 2. Upsert Entities and link Chunk -> Entity

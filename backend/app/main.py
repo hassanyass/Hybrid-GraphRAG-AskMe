@@ -34,8 +34,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     Application lifespan manager.
     Setup operations before accepting requests and cleanup after shutdown.
     """
-    # Startup: Initialize connections (Database engine, MinIO, etc. are handled lazily or via dependencies,
-    # but we could add explicit initializations here if needed)
+    from backend.app.storage.neo4j_service import Neo4jService
+    neo4j = Neo4jService()
+    try:
+        neo4j.initialize_constraints()
+    finally:
+        neo4j.close()
+    
     yield
     # Shutdown: Clean up connections
 

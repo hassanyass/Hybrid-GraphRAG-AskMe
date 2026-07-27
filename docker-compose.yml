@@ -86,17 +86,17 @@ services:
   # Responsibility: Stores the knowledge graph containing entities,
   #                 relationships, and hierarchies extracted from documents.
   # ---------------------------------------------------------------------------
-  # neo4j:
-  #   image: neo4j:5-community
-  #   container_name: hybridgraphrag-neo4j
-  #   ports:
-  #     - "7474:7474"   # HTTP browser interface
-  #     - "7687:7687"   # Bolt protocol
-  #   environment:
-  #     NEO4J_AUTH: ${NEO4J_USERNAME}/${NEO4J_PASSWORD}
-  #   volumes:
-  #     - neo4j_data:/data
-  #   restart: unless-stopped
+  neo4j:
+    image: neo4j:5-community
+    container_name: hybridgraphrag-neo4j
+    ports:
+      - "7474:7474"   # HTTP browser interface
+      - "7687:7687"   # Bolt protocol
+    environment:
+      NEO4J_AUTH: ${NEO4J_USERNAME}/${NEO4J_PASSWORD}
+    volumes:
+      - neo4j_data:/data
+    restart: unless-stopped
 
   # ---------------------------------------------------------------------------
   # MinIO — Object Storage
@@ -123,3 +123,4 @@ services:
 # =============================================================================
 volumes:
   minio_data:
+  neo4j_data:

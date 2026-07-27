@@ -211,17 +211,62 @@ Each decision follows this structure:
 
 ---
 
+### ADR-009: Neo4j Graph Schema Design
+
+- **Date:** 2026-07-27
+- **Status:** Accepted
+
+- **Context:**
+  The system needs a schema for Neo4j that can represent knowledge extracted from arbitrary documents without requiring an upfront ontology definition.
+
+- **Decision:**
+  Adopt a generic schema: `(Entity)-[:RELATES_TO {type: string}]->(Entity)`. Entities use a deterministic MD5 hash of `normalized_name + ":" + type` for their `id` to ensure automatic cross-document deduplication via Cypher `MERGE`.
+
+- **Alternatives Considered:**
+  | Alternative | Reason for Rejection |
+  |---|---|
+  | Strict Ontology (e.g., specific Node labels like `Person`, `Company`) | Too rigid; cannot adapt to arbitrary document domains uploaded by users. |
+  | Dynamic Relationship Types in Cypher | Cypher does not allow dynamic string interpolation for relationship types in a `MERGE` clause easily. |
+
+- **Consequences:**
+  - Highly flexible graph that adapts to any domain.
+  - Queries must rely on filtering the `type` property of `RELATES_TO` relationships rather than relationship labels directly.
+
+---
+
+### ADR-010: LLM-Based Entity Extraction with Instructor
+
+- **Date:** 2026-07-27
+- **Status:** Accepted
+
+- **Context:**
+  We need to extract entities and relationships from chunks. Traditional NLP models (like spaCy) lack the contextual reasoning required for complex relationship extraction.
+
+- **Decision:**
+  Use LLMs for extraction, and enforce structured JSON output using the `instructor` library with Pydantic models (`LLMEntity`, `LLMRelationship`).
+
+- **Alternatives Considered:**
+  | Alternative | Reason for Rejection |
+  |---|---|
+  | spaCy / traditional NER | Poor relationship extraction; requires significant training for custom domains. |
+  | Raw LLM JSON parsing | High failure rate for malformed JSON; requires custom retry/validation logic. |
+
+- **Consequences:**
+  - High accuracy in relationship extraction.
+  - Slower and more expensive than traditional NER (mitigated by asynchronous background processing).
+  - Reliable structured output thanks to `instructor` and Pydantic.
+
+---
+
 ## 4. Pending Decisions
 
 The following decisions are anticipated in upcoming phases:
 
 | ID | Topic | Expected Phase |
 |---|---|---|
-| ADR-008 | Embedding model configuration | Phase 5 |
-| ADR-009 | Graph schema design | Phase 6 |
-| ADR-010 | Retrieval fusion algorithm | Phase 7 |
-| ADR-011 | Prompt engineering framework | Phase 8 |
-| ADR-012 | Deployment target (Docker Compose vs. Kubernetes) | Phase 10 |
+| ADR-011 | Retrieval fusion algorithm | Phase 7 |
+| ADR-012 | Prompt engineering framework | Phase 8 |
+| ADR-013 | Deployment target (Docker Compose vs. Kubernetes) | Phase 10 |
 
 ---
 
@@ -233,3 +278,4 @@ The following decisions are anticipated in upcoming phases:
 | 2026-07-27 | 0.2.0 | Added ADR-004 for Alembic database migrations. | Architecture Team |
 | 2026-07-27 | 0.3.0 | Added ADR-005 for Supabase Auth identity provider. | Architecture Team |
 | 2026-07-27 | 0.4.0 | Added ADR-007 for MinIO object storage. | Architecture Team |
+| 2026-07-27 | 0.5.0 | Added ADR-009 for Neo4j Schema and ADR-010 for LLM Extraction. | Architecture Team |
