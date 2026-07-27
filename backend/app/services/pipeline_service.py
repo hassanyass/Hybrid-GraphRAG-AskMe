@@ -41,6 +41,9 @@ class PipelineService:
         self._chunk_repo = ChunkRepository(session)
         self._storage = StorageService()
         self._embedder = EmbeddingService()
+        
+        from backend.app.storage.qdrant_service import QdrantService
+        self._qdrant = QdrantService()
 
     async def process_document(
         self,
@@ -96,8 +99,17 @@ class PipelineService:
             if not chunk_results:
                 raise ValueError("Chunking produced zero chunks.")
 
-            # 6. Generate embeddings
-            chunk_texts = [c.content for c in chunk_results]
+            # 6. Prepend contextual metadata to text before embedding
+            from datetime import datetime, timezone
+            
+            chunk_texts = []
+            for c in chunk_results:
+                context = f"Document: {doc.filename}"
+                if c.section_title:
+                    context += f" | Section: {c.section_title}"
+                context += f"\n{c.content}"
+                chunk_texts.append(context)
+
             embedding_result = self._embedder.embed(chunk_texts)
             logger.info(
                 "Generated %d embeddings (model=%s, dim=%d)",
@@ -111,8 +123,10 @@ class PipelineService:
 
             # 8. Persist chunks to PostgreSQL
             db_chunks: list[DocumentChunk] = []
+            now = datetime.now(timezone.utc)
             for chunk_result in chunk_results:
                 db_chunk = DocumentChunk(
+                    id=uuid.uuid4(),  # explicitly generate UUID to use in Qdrant
                     document_id=document_id,
                     chunk_index=chunk_result.chunk_index,
                     content=chunk_result.content,
@@ -124,21 +138,28 @@ class PipelineService:
                     section_level=chunk_result.section_level,
                     vector_status=VectorStatus.EMBEDDED,
                     embedding_model=embedding_result.model_name,
-                    # embedding_id stays NULL until Phase 6 (Qdrant indexing)
+                    embedding_dimension=embedding_result.dimension,
+                    embedding_version="v1.0",  # static versioning for now
+                    vector_generated_at=now,
                 )
                 db_chunks.append(db_chunk)
 
+            # Insert chunks into Postgres before Qdrant so we have consistent state
             await self._chunk_repo.bulk_create(db_chunks)
             logger.info("Persisted %d chunks to PostgreSQL for document %s", len(db_chunks), document_id)
 
-            # 9. Update document metadata
+            # 9. Sync to Qdrant
+            self._qdrant.ensure_collection(dimension=embedding_result.dimension)
+            self._qdrant.upsert_chunks(db_chunks, embedding_result.embeddings)
+
+            # 10. Update document metadata
             await self._update_metadata(
                 doc=doc,
                 page_count=parse_result.page_count,
                 chunk_count=len(db_chunks),
             )
 
-            # 10. Mark as COMPLETED
+            # 11. Mark as COMPLETED
             updated_doc = await self._doc_repo.update_status(document_id, DocumentStatus.COMPLETED)
             logger.info("Pipeline completed for document %s", document_id)
             return updated_doc

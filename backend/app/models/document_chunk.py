@@ -150,6 +150,21 @@ class DocumentChunk(Base):
         nullable=True,
         comment="Name of the embedding model used (e.g. BGE-M3).",
     )
+    embedding_dimension: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Dimension of the embedding vector.",
+    )
+    embedding_version: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        comment="Version of the embedding model used.",
+    )
+    vector_generated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Timestamp when the vector embedding was generated.",
+    )
 
     # ------------------------------------------------------------------
     # Neo4j Knowledge Graph Tracking (Phase 6)

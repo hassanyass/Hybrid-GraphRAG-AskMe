@@ -163,7 +163,24 @@ class TestDocxChunker:
 
 
 class TestPipelineService:
-    """Tests for the pipeline orchestrator using mocks."""
+    """Tests for the pipeline service."""
+
+    @pytest_asyncio.fixture
+    def mock_deps(self, mocker):
+        """Mock out all external dependencies."""
+        mock_doc_repo = mocker.patch("backend.app.services.pipeline_service.DocumentRepository", autospec=True).return_value
+        mock_chunk_repo = mocker.patch("backend.app.services.pipeline_service.ChunkRepository", autospec=True).return_value
+        mock_storage = mocker.patch("backend.app.services.pipeline_service.StorageService", autospec=True).return_value
+        mock_embedder = mocker.patch("backend.app.services.pipeline_service.EmbeddingService", autospec=True).return_value
+        mock_qdrant = mocker.patch("backend.app.services.pipeline_service.QdrantService", autospec=True).return_value
+
+        return {
+            "doc_repo": mock_doc_repo,
+            "chunk_repo": mock_chunk_repo,
+            "storage": mock_storage,
+            "embedder": mock_embedder,
+            "qdrant": mock_qdrant,
+        }
 
     @pytest.mark.asyncio
     async def test_process_document_rejects_already_processing(self):
@@ -176,7 +193,9 @@ class TestPipelineService:
             "backend.app.services.pipeline_service.StorageService"
         ) as MockStorage, patch(
             "backend.app.services.pipeline_service.DocumentRepository"
-        ) as MockDocRepo:
+        ) as MockDocRepo, patch(
+            "backend.app.services.pipeline_service.QdrantService"
+        ):
             mock_doc = MagicMock(spec=Document)
             mock_doc.status = DocumentStatus.PROCESSING
             mock_doc.id = uuid.uuid4()
