@@ -25,7 +25,7 @@ ALLOWED_ORIGINS_ENV = os.getenv("ALLOWED_ORIGINS") or "*"
 ALLOWED_ORIGINS = [origin.strip() for origin in ALLOWED_ORIGINS_ENV.split(",") if origin.strip()]
 
 # Internal modules
-from backend.app.api import document_router, user_router
+from backend.app.api import document_router, user_router, chat_router
 
 
 @asynccontextmanager
@@ -66,6 +66,7 @@ def create_app() -> FastAPI:
     # Register Routers
     app.include_router(user_router)
     app.include_router(document_router)
+    app.include_router(chat_router)
 
     # Health Endpoint
     @app.get("/health", tags=["Health"])

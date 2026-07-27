@@ -109,3 +109,39 @@ class QdrantService:
         except Exception as e:
             logger.error("Failed to upsert points to Qdrant: %s", e)
             raise
+
+    def search(self, query_embedding: list[float], top_k: int = 5) -> list["VectorSearchResult"]:
+        """
+        Search for the most similar chunks to the query vector.
+        Note: The returned results will not have chunk_text or filename 
+        since they are not stored in Qdrant payloads. They must be enriched 
+        by the caller from the relational database.
+        """
+        from backend.app.models.retrieval import VectorSearchResult
+        
+        try:
+            hits = self._client.search(
+                collection_name=self._collection_name,
+                query_vector=query_embedding,
+                limit=top_k
+            )
+            
+            results = []
+            for hit in hits:
+                payload = hit.payload or {}
+                results.append(
+                    VectorSearchResult(
+                        chunk_id=str(hit.id),
+                        score=hit.score,
+                        document_id=payload.get("document_id", ""),
+                        page_number=payload.get("page_number"),
+                        section_title=payload.get("section_title"),
+                        chunk_index=payload.get("chunk_index", 0),
+                        metadata=payload
+                    )
+                )
+            logger.info("Qdrant search returned %d hits.", len(results))
+            return results
+        except Exception as e:
+            logger.error("Failed to search Qdrant: %s", e)
+            return []

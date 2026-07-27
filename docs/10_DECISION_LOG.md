@@ -258,15 +258,64 @@ Each decision follows this structure:
 
 ---
 
+### ADR-011: Hybrid Retrieval Strategy
+
+- **Date:** 2026-07-27
+- **Status:** Accepted
+
+- **Context:**
+  We needed a mechanism to merge the vector search results (dense) and graph search results (structural) during retrieval to build the LLM context.
+
+- **Decision:**
+  Use a parallel orchestration model in `HybridRetriever`. Both Qdrant and Neo4j are queried concurrently via `asyncio.gather`. Vector search matches embeddings; graph search relies on token/keyword matches against entity names and expands relationships.
+
+- **Consequences:**
+  - Fast execution time due to parallel processing.
+  - Requires a deduplication step since the same chunk may be retrieved by both Qdrant and Neo4j.
+
+---
+
+### ADR-012: Weighted Reranking
+
+- **Date:** 2026-07-27
+- **Status:** Accepted
+
+- **Context:**
+  When merging results from Qdrant and Neo4j, chunks need a unified scoring system to sort them by overall relevance for the context window.
+
+- **Decision:**
+  Implement a linear weighted scoring formula: `FinalScore = (VectorScore * VECTOR_WEIGHT) + (GraphScore * GRAPH_WEIGHT)`. Weights are configurable via environment variables, defaulting to 0.7 for vectors and 0.3 for graph confidence.
+
+- **Consequences:**
+  - Simple, fast, and deterministic compared to an LLM-based reranker.
+  - Allows easy tuning without code changes.
+
+---
+
+### ADR-013: Provider-agnostic LLM Layer
+
+- **Date:** 2026-07-27
+- **Status:** Accepted
+
+- **Context:**
+  The system must support various LLMs (OpenAI, Gemini, Azure, Ollama) depending on the deployment environment and data privacy requirements.
+
+- **Decision:**
+  Built `LLMService` using the Strategy pattern with an `LLMProvider` interface. A single provider is instantiated at runtime based on the `LLM_PROVIDER` environment variable.
+
+- **Consequences:**
+  - Easy to swap providers without modifying business logic.
+  - Minimizes vendor lock-in.
+
+---
+
 ## 4. Pending Decisions
 
 The following decisions are anticipated in upcoming phases:
 
 | ID | Topic | Expected Phase |
 |---|---|---|
-| ADR-011 | Retrieval fusion algorithm | Phase 7 |
-| ADR-012 | Prompt engineering framework | Phase 8 |
-| ADR-013 | Deployment target (Docker Compose vs. Kubernetes) | Phase 10 |
+| ADR-014 | Deployment target (Docker Compose vs. Kubernetes) | Phase 10 |
 
 ---
 
@@ -279,3 +328,4 @@ The following decisions are anticipated in upcoming phases:
 | 2026-07-27 | 0.3.0 | Added ADR-005 for Supabase Auth identity provider. | Architecture Team |
 | 2026-07-27 | 0.4.0 | Added ADR-007 for MinIO object storage. | Architecture Team |
 | 2026-07-27 | 0.5.0 | Added ADR-009 for Neo4j Schema and ADR-010 for LLM Extraction. | Architecture Team |
+| 2026-07-27 | 0.6.0 | Added ADR-011, ADR-012, and ADR-013 for Hybrid Retrieval Engine. | Architecture Team |

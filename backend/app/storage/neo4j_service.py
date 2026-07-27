@@ -11,7 +11,7 @@ from neo4j import GraphDatabase, Driver
 logger = logging.getLogger(__name__)
 
 NEO4J_URI = os.getenv("NEO4J_URI") or "bolt://localhost:7687"
-NEO4J_USER = os.getenv("NEO4J_USER") or "neo4j"
+NEO4J_USERNAME = os.getenv("NEO4J_USERNAME") or "neo4j"
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD") or "password"
 
 
@@ -20,7 +20,7 @@ class Neo4jService:
 
     def __init__(self, uri: str | None = None, user: str | None = None, password: str | None = None):
         self._uri = uri or NEO4J_URI
-        self._user = user or NEO4J_USER
+        self._user = user or NEO4J_USERNAME
         self._password = password or NEO4J_PASSWORD
         self._driver: Driver | None = None
         
@@ -138,3 +138,85 @@ class Neo4jService:
                 rel_type=rel.get("type", "RELATED"),
                 desc=rel.get("description", "")
             )
+
+    def search_graph(self, query: str) -> "GraphSearchResult":
+        """
+        Search the graph for entities matching the query text.
+        Expands relationships and returns connected chunks.
+        """
+        from backend.app.models.retrieval import GraphSearchResult, GraphEntity, GraphRelationship
+        
+        if not self._driver:
+            raise RuntimeError("Neo4j driver is not initialized.")
+            
+        # Naive keyword matching by splitting the query into tokens
+        tokens = [token.lower() for token in query.split() if len(token) > 3]
+        if not tokens:
+            # Fallback to the whole string if no large tokens
+            tokens = [query.lower()]
+            
+        cypher_query = """
+        MATCH (e:Entity)
+        WHERE any(token IN $tokens WHERE toLower(e.name) CONTAINS token)
+        
+        // Find relationships and connected entities
+        OPTIONAL MATCH (e)-[r:RELATES_TO]-(related:Entity)
+        
+        // Find chunks that mention these entities
+        OPTIONAL MATCH (c:Chunk)-[:MENTIONS]->(e)
+        
+        RETURN 
+            collect(DISTINCT e) AS matched_entities,
+            collect(DISTINCT related) AS related_entities,
+            collect(DISTINCT r) AS relationships,
+            collect(DISTINCT c.id) AS connected_chunks
+        LIMIT 100
+        """
+        
+        try:
+            with self._driver.session() as session:
+                result = session.run(cypher_query, tokens=tokens)
+                record = result.single()
+                
+                if not record:
+                    return GraphSearchResult()
+                    
+                entities = []
+                rels = []
+                
+                # Combine direct and related entities
+                all_nodes = record["matched_entities"] + record["related_entities"]
+                seen_entities = set()
+                
+                for node in all_nodes:
+                    if node and node["id"] not in seen_entities:
+                        seen_entities.add(node["id"])
+                        entities.append(GraphEntity(
+                            id=node["id"],
+                            name=node.get("name", ""),
+                            type=node.get("type", "")
+                        ))
+                        
+                for r in record["relationships"]:
+                    if r:
+                        rels.append(GraphRelationship(
+                            source_id=r.nodes[0]["id"],
+                            target_id=r.nodes[1]["id"],
+                            type=r.get("type", ""),
+                            description=r.get("description", "")
+                        ))
+                        
+                chunks = [c for c in record["connected_chunks"] if c]
+                
+                # Calculate simple confidence based on match count
+                confidence = min(len(entities) * 0.2 + len(rels) * 0.1, 1.0)
+                
+                return GraphSearchResult(
+                    entities=entities,
+                    relationships=rels,
+                    connected_chunks=chunks,
+                    confidence=confidence
+                )
+        except Exception as e:
+            logger.error("Failed to search graph: %s", e)
+            return GraphSearchResult()

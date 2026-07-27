@@ -14,7 +14,11 @@
 - [x] Phase 4: Object Storage (MinIO Integration)
 - [x] Phase 5: AI Pipeline (Document Parsing & Text Extraction)
 - [x] Phase 5.5: Hybrid Chunking Enhancement
-- [ ] Phase 6: Vector & Graph Integration (Qdrant & Neo4j)
+- [x] Phase 6: Vector & Graph Integration (Qdrant & Neo4j)
+- [x] Phase 7: Neo4j Knowledge Graph Integration
+- [x] Phase 8: Hybrid Retrieval & GraphRAG Query Engine
+- [ ] Phase 9: React Frontend Implementation
+- [ ] Phase 10: Dockerization & Deployment
 
 ### Currently Implemented Features
 
