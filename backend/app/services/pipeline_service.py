@@ -19,7 +19,7 @@ import uuid
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_pipeline.chunking.recursive_chunker import RecursiveChunker
+from ai_pipeline.chunking.chunking_selector import ChunkingSelector
 from ai_pipeline.embeddings.embedding_service import EmbeddingService
 from ai_pipeline.parsing.parser_factory import get_parser
 
@@ -40,7 +40,6 @@ class PipelineService:
         self._doc_repo = DocumentRepository(session)
         self._chunk_repo = ChunkRepository(session)
         self._storage = StorageService()
-        self._chunker = RecursiveChunker()
         self._embedder = EmbeddingService()
 
     async def process_document(
@@ -90,8 +89,9 @@ class PipelineService:
                 raise ValueError("No text content could be extracted from the document.")
 
             # 5. Chunk text using pages to preserve metadata
-            chunk_results = self._chunker.chunk(parse_result.pages)
-            logger.info("Document %s split into %d chunks", document_id, len(chunk_results))
+            chunker = ChunkingSelector.get_chunker(doc.file_type)
+            chunk_results = chunker.chunk(parse_result.pages)
+            logger.info("Document %s split into %d chunks using %s strategy", document_id, len(chunk_results), type(chunker).__name__)
 
             if not chunk_results:
                 raise ValueError("Chunking produced zero chunks.")
@@ -119,6 +119,9 @@ class PipelineService:
                     token_count=chunk_result.token_count,
                     page_number=chunk_result.page_number,
                     language=parse_result.language,
+                    chunking_strategy=chunk_result.chunking_strategy,
+                    section_title=chunk_result.section_title,
+                    section_level=chunk_result.section_level,
                     vector_status=VectorStatus.EMBEDDED,
                     embedding_model=embedding_result.model_name,
                     # embedding_id stays NULL until Phase 6 (Qdrant indexing)

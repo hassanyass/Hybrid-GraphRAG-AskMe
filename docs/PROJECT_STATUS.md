@@ -8,17 +8,32 @@
 
 ---
 
-## 1. Current Phase
+- [x] Phase 1: Foundation (FastAPI, Database, Docker)
+- [x] Phase 2: Auth Layer (Supabase Integration)
+- [x] Phase 3: PostgreSQL Database Models
+- [x] Phase 4: Object Storage (MinIO Integration)
+- [x] Phase 5: AI Pipeline (Document Parsing & Text Extraction)
+- [x] Phase 5.5: Hybrid Chunking Enhancement
+- [ ] Phase 6: Vector & Graph Integration (Qdrant & Neo4j)
 
-**Phase 4 — Document Management System (Completed)**
+### Currently Implemented Features
 
-## 2. Completed Features
+1. **User Authentication**
+   - Supabase JWT validation.
+   - User syncing to local PostgreSQL on first request.
 
-The following core features have been implemented and verified in the current and past phases:
-- **Authentication**: JWT-based stateless authentication tied natively to Supabase Auth. Includes automated role-based access control and seamless local PostgreSQL profile provisioning.
-- **Database Layer**: Production-grade SQLAlchemy ORM integrated with PostgreSQL. Async operations, cascading relationships, and robust Alembic migration workflows.
-- **Document Upload**: Secured multipart uploading API endpoint enforcing a 20MB file limit and MIME type restriction (PDF, DOCX, TXT).
-- **Object Storage**: Highly scalable integration with MinIO using the Python SDK. Storage abstractions logically isolate binary blobs from structured metadata.
+2. **Document Management**
+   - Secure MinIO file upload.
+   - Metadata persistence in PostgreSQL.
+   - Support for PDF, DOCX, and TXT files.
+
+3. **AI Pipeline & Hybrid Chunking**
+   - Type-specific document parsing (PyMuPDF, python-docx).
+   - Hybrid Chunking Strategies (`PdfChunker`, `DocxChunker`, `TxtChunker`).
+   - Structural metadata tracking (`page_number`, `section_title`, `section_level`).
+   - Size validation bounds (`MIN_CHUNK_SIZE`, `MAX_CHUNK_SIZE`).
+   - Local dense vector generation using `sentence-transformers`.
+   - Asynchronous orchestration via `PipelineService`.
 
 ## 3. Current Architecture State
 

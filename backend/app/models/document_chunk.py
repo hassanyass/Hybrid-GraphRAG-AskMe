@@ -113,6 +113,22 @@ class DocumentChunk(Base):
         nullable=True,
         comment="Detected language for this specific chunk.",
     )
+    chunking_strategy: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        server_default="recursive",
+        comment="The chunking strategy used to produce this chunk.",
+    )
+    section_title: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        comment="Title of the section this chunk belongs to (if detected).",
+    )
+    section_level: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Heading depth level for the section (e.g., 1 for H1, 2 for H2).",
+    )
 
     # ------------------------------------------------------------------
     # Qdrant Vector Storage Tracking (Phase 6)

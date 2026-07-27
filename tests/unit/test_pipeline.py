@@ -11,7 +11,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import pytest_asyncio
 
-from ai_pipeline.chunking.recursive_chunker import ChunkResult, RecursiveChunker
+from ai_pipeline.chunking.base_chunker import ChunkResult
+from ai_pipeline.chunking.txt_chunker import TxtChunker
+from ai_pipeline.chunking.pdf_chunker import PdfChunker
+from ai_pipeline.chunking.docx_chunker import DocxChunker
+from ai_pipeline.chunking.chunking_selector import ChunkingSelector
 from ai_pipeline.parsing.base_parser import ParsedPage, ParseResult
 from ai_pipeline.parsing.docx_parser import DocxParser
 from ai_pipeline.parsing.parser_factory import get_parser
@@ -72,15 +76,36 @@ class TestParserFactory:
 
 
 # =====================================================================
-# Chunker Tests
+# Hybrid Chunker Tests
 # =====================================================================
 
 
-class TestRecursiveChunker:
-    """Tests for the recursive text chunker."""
+class TestChunkingSelector:
+    """Tests for strategy selection."""
+
+    def test_get_chunker_pdf(self):
+        chunker = ChunkingSelector.get_chunker("application/pdf")
+        assert isinstance(chunker, PdfChunker)
+
+    def test_get_chunker_docx(self):
+        chunker = ChunkingSelector.get_chunker("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        assert isinstance(chunker, DocxChunker)
+
+    def test_get_chunker_txt(self):
+        chunker = ChunkingSelector.get_chunker("text/plain")
+        assert isinstance(chunker, TxtChunker)
+
+    def test_get_chunker_fallback(self):
+        chunker = ChunkingSelector.get_chunker("unknown/type")
+        assert isinstance(chunker, TxtChunker)
+
+
+class TestTxtChunker:
+    """Tests for the text chunker."""
 
     def test_chunk_basic(self):
-        chunker = RecursiveChunker(chunk_size=50, chunk_overlap=10)
+        chunker = TxtChunker(chunk_size=50, chunk_overlap=10)
+        chunker._min_chunk_size = 1 # override min chunk size for testing
         pages = [ParsedPage(page_number=1, text="A" * 200)]
         results = chunker.chunk(pages)
         assert len(results) > 1
@@ -88,35 +113,48 @@ class TestRecursiveChunker:
         assert results[0].chunk_index == 0
         assert results[1].chunk_index == 1
         assert results[0].page_number == 1
+        assert results[0].chunking_strategy == "txt_recursive"
 
-    def test_chunk_small_text(self):
-        chunker = RecursiveChunker(chunk_size=1000, chunk_overlap=200)
-        pages = [ParsedPage(page_number=2, text="Short text.")]
+
+class TestPdfChunker:
+    """Tests for the PDF chunker."""
+
+    def test_chunk_preserves_page_numbers(self):
+        chunker = PdfChunker(chunk_size=50, chunk_overlap=10)
+        chunker._min_chunk_size = 1 # override min chunk size for testing
+        pages = [
+            ParsedPage(page_number=1, text="Page one text. " * 5),
+            ParsedPage(page_number=2, text="Page two text. " * 5),
+        ]
         results = chunker.chunk(pages)
-        assert len(results) == 1
-        assert results[0].content == "Short text."
-        assert results[0].chunk_index == 0
-        assert results[0].page_number == 2
+        assert len(results) > 1
+        assert any(r.page_number == 1 for r in results)
+        assert any(r.page_number == 2 for r in results)
+        assert results[0].chunking_strategy == "pdf_recursive"
 
-    def test_chunk_empty_text(self):
-        chunker = RecursiveChunker()
-        results = chunker.chunk([])
-        assert results == []
 
-    def test_chunk_preserves_order(self):
-        chunker = RecursiveChunker(chunk_size=20, chunk_overlap=5)
-        pages = [ParsedPage(page_number=1, text="First paragraph.\n\nSecond paragraph.\n\nThird paragraph.")]
+class TestDocxChunker:
+    """Tests for the DOCX chunker."""
+
+    def test_chunk_detects_headings(self):
+        chunker = DocxChunker(chunk_size=1000, chunk_overlap=10)
+        chunker._min_chunk_size = 1 # override min chunk size for testing
+        pages = [
+            ParsedPage(page_number=1, text="# Introduction\n\nThis is the intro.\n\n## Background\n\nSome background info.")
+        ]
         results = chunker.chunk(pages)
-        for i, r in enumerate(results):
-            assert r.chunk_index == i
-            assert r.page_number == 1
-
-    def test_chunk_token_count(self):
-        chunker = RecursiveChunker(chunk_size=100, chunk_overlap=10)
-        pages = [ParsedPage(page_number=1, text="Hello world. " * 50)]
-        results = chunker.chunk(pages)
-        for r in results:
-            assert r.token_count == len(r.content)
+        assert len(results) == 2
+        
+        # The intro chunk should have level 1 and title "Introduction"
+        intro_chunk = results[0]
+        assert intro_chunk.section_title == "Introduction"
+        assert intro_chunk.section_level == 1
+        
+        # The background chunk should have level 2 and title "Background"
+        bg_chunk = results[1]
+        assert bg_chunk.section_title == "Background"
+        assert bg_chunk.section_level == 2
+        assert bg_chunk.chunking_strategy == "docx_heading_aware"
 
 
 # =====================================================================

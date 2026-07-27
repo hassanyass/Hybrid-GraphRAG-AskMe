@@ -24,10 +24,43 @@ This document describes the AI processing pipeline architecture, including docum
 
 ### 3.1 Pipeline Flow
 The AI Pipeline processes uploaded documents through a multi-stage flow:
-1. **Parsing**: Raw bytes (from MinIO) are converted to plain text using format-specific parsers.
-2. **Chunking**: Full text is split into semantic chunks with overlap to maintain context.
-3. **Embeddings**: Chunks are processed by a semantic embedding model to generate dense vectors.
-4. **Persistence**: Chunks and metadata are saved to PostgreSQL (vector persistence happens in Phase 6).
+```mermaid
+graph TD
+    A[MinIO Raw File] --> B[Parser Factory]
+    B --> C{File Type?}
+    C -->|PDF| D[PyMuPDF Parser]
+    C -->|DOCX| E[python-docx Parser]
+    C -->|TXT| F[Plain Text Parser]
+    
+    D --> G[Parsed Pages]
+    E --> G
+    F --> G
+    
+    G --> H[Chunking Selector]
+    H -->|PDF| I[PdfChunker]
+    H -->|DOCX| J[DocxChunker]
+    H -->|TXT| K[TxtChunker]
+    
+    I --> L[Chunk Validation]
+    J --> L
+    K --> L
+    
+    L --> M[List of ChunkResults]
+    M --> N[Embedding Service]
+    N --> O[PostgreSQL document_chunks]
+```
+
+## Hybrid Chunking Architecture (Phase 5.5)
+
+The pipeline uses a hybrid, strategy-based chunking system that adapts to the document type:
+
+1. **TxtChunker (Fallback)**: Uses LangChain's `RecursiveCharacterTextSplitter` as the standard approach for unstructured text.
+2. **PdfChunker**: Preserves physical page boundaries and metadata (`page_number`).
+3. **DocxChunker**: Detects structural headings (Heading 1-6) and uses LangChain's `MarkdownHeaderTextSplitter` combined with recursive splitting. It stores the deepest heading as `section_title` and `section_level`.
+
+All chunkers enforce configurable bounds (`MIN_CHUNK_SIZE` and `MAX_CHUNK_SIZE`) through a shared `BaseChunker` validation layer.
+
+## Future Compatibility (Phase 6).
 
 ### 3.2 Document Parsing
 The system uses a Strategy pattern via `ParserFactory` to handle different file types:

@@ -162,6 +162,27 @@ Each decision follows this structure:
 
 ---
 
+### ADR-008: Hybrid Chunking Strategy Selection
+
+- **Date:** 2026-07-27
+- **Status:** Accepted
+
+- **Context:**
+  A universal `RecursiveCharacterTextSplitter` does not effectively capture document structure (like headings in DOCX or physical pages in PDFs), which degrades retrieval accuracy.
+
+- **Decision:**
+  We implemented a **Hybrid Chunking Architecture** (Phase 5.5). The system now uses a `ChunkingSelector` to route parsing output to specialized chunkers:
+  - **PdfChunker**: Preserves physical `page_number` boundaries.
+  - **DocxChunker**: Employs LangChain's `MarkdownHeaderTextSplitter` to capture `section_title` and `section_level`.
+  - **TxtChunker**: Acts as the standard recursive fallback.
+
+- **Consequences:**
+  - **Positive**: Richer chunk metadata improves GraphRAG entity resolution and Qdrant filtering capabilities.
+  - **Positive**: Dedicated chunkers allow fine-tuning parsing logic without affecting other formats.
+  - **Negative**: Increased complexity in the chunking layer and reliance on document structure.
+
+---
+
 ### ADR-007: MinIO Object Storage Implementation
 
 - **Date:** 2026-07-27

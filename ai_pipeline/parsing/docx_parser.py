@@ -33,8 +33,22 @@ class DocxParser(BaseParser):
 
             for paragraph in doc.paragraphs:
                 text = paragraph.text.strip()
-                if text:
-                    paragraphs.append(text)
+                if not text:
+                    continue
+                    
+                style_name = paragraph.style.name if paragraph.style else ""
+                
+                if style_name.startswith("Heading"):
+                    try:
+                        level = int(style_name.split(" ")[-1])
+                        # Bound level between 1 and 6 for Markdown
+                        level = max(1, min(6, level))
+                        text = f"{'#' * level} {text}"
+                    except ValueError:
+                        # Fallback if "Heading X" format is unexpected
+                        text = f"# {text}"
+                        
+                paragraphs.append(text)
 
             full_text = "\n\n".join(paragraphs)
             
