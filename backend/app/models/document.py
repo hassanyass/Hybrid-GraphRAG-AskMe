@@ -107,6 +107,12 @@ class Document(Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+    chunks: Mapped[list["DocumentChunk"]] = relationship(
+        "DocumentChunk",
+        back_populates="document",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
     def __repr__(self) -> str:
         return f"<Document id={self.id} filename={self.filename!r} status={self.status.value}>"
