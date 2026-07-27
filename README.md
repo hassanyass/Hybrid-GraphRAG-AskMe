@@ -107,10 +107,10 @@ HybridGraphRAG/
 ## 5. Development Status
 
 - [x] **Phase 0** — Foundation (Project structure, documentation, configuration)
-- [ ] **Phase 1** — Backend Foundation (FastAPI setup, project config, health checks)
-- [ ] **Phase 2** — Database Layer (PostgreSQL schemas, migrations, repositories)
-- [ ] **Phase 3** — Authentication (JWT auth, RBAC, session management)
-- [ ] **Phase 4** — Document Management (Upload, parsing, storage pipeline)
+- [x] **Phase 1** — Backend Foundation (FastAPI setup, project config, health checks)
+- [x] **Phase 2** — Database Layer (PostgreSQL schemas, migrations, repositories)
+- [x] **Phase 3** — Authentication (JWT auth, RBAC, session management)
+- [x] **Phase 4** — Document Management (Upload, parsing, storage pipeline)
 - [ ] **Phase 5** — AI Pipeline (Embedding generation, chunking, extraction)
 - [ ] **Phase 6** — Knowledge Storage (Qdrant indexing, Neo4j graph construction)
 - [ ] **Phase 7** — RAG Engine (Hybrid retrieval, reranking, context assembly)
@@ -122,7 +122,14 @@ HybridGraphRAG/
 
 ## 6. Getting Started
 
-> **Note:** This project is currently in **Phase 0 — Foundation**. Implementation has not yet begun. The instructions below will be updated as each phase is completed.
+> **Note:** The project is actively in development. The backend is currently capable of handling document uploads and managing user identities.
+
+### Implemented Features
+
+- **Authentication**: Stateless JWT-based authentication using Supabase.
+- **Database Layer**: Async PostgreSQL integration via SQLAlchemy and Alembic.
+- **Document Upload**: Secured FastAPI endpoint for multipart file uploads with size and MIME validation.
+- **Object Storage**: MinIO integration for decoupling binary files from relational data.
 
 ### Prerequisites
 
@@ -146,7 +153,7 @@ cp .env.example .env
 docker-compose up -d
 ```
 
-Further setup instructions will be added in Phase 1.
+Further setup instructions will be added as AI and Frontend phases are finalized.
 
 ---
 
@@ -181,4 +188,4 @@ Contribution guidelines will be established in a future phase. All contributions
 
 ---
 
-*Last updated: 2026-07-27 — Phase 0: Foundation*
+*Last updated: 2026-07-27 — Phase 4: Document Management System*

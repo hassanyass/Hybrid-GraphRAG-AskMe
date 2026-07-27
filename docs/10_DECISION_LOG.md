@@ -162,12 +162,12 @@ Each decision follows this structure:
 
 ---
 
-### ADR-006: MinIO for Document Object Storage
+### ADR-007: MinIO Object Storage Implementation
 
 - **Date:** 2026-07-27
 - **Status:** Accepted
 
-- **Context:**
+- **Problem:**
   The system needs a scalable, secure, and performant way to store raw uploaded documents before and during AI processing.
 
 - **Decision:**
@@ -179,6 +179,9 @@ Each decision follows this structure:
   | PostgreSQL `BYTEA` | Bloats the relational database, heavily impacts backup/restore performance, and scales poorly for large binaries. |
   | Local Filesystem | Not scalable across multiple backend instances; creates stateful API nodes. |
   | AWS S3 | Vendor lock-in; requires external cloud connectivity for local development. |
+
+- **Reasoning:**
+  MinIO provides a robust S3-compatible API that runs seamlessly on-premise or within Docker, completely abstracting binary blob storage from the main Postgres database.
 
 - **Consequences:**
   - Separates large binary files from relational application data.
@@ -193,11 +196,11 @@ The following decisions are anticipated in upcoming phases:
 
 | ID | Topic | Expected Phase |
 |---|---|---|
-| ADR-007 | Embedding model configuration | Phase 5 |
-| ADR-008 | Graph schema design | Phase 6 |
-| ADR-009 | Retrieval fusion algorithm | Phase 7 |
-| ADR-010 | Prompt engineering framework | Phase 8 |
-| ADR-011 | Deployment target (Docker Compose vs. Kubernetes) | Phase 10 |
+| ADR-008 | Embedding model configuration | Phase 5 |
+| ADR-009 | Graph schema design | Phase 6 |
+| ADR-010 | Retrieval fusion algorithm | Phase 7 |
+| ADR-011 | Prompt engineering framework | Phase 8 |
+| ADR-012 | Deployment target (Docker Compose vs. Kubernetes) | Phase 10 |
 
 ---
 
@@ -208,4 +211,4 @@ The following decisions are anticipated in upcoming phases:
 | 2026-07-27 | 0.1.0 | Initial decision log with ADR-001, ADR-002, and ADR-003. | Architecture Team |
 | 2026-07-27 | 0.2.0 | Added ADR-004 for Alembic database migrations. | Architecture Team |
 | 2026-07-27 | 0.3.0 | Added ADR-005 for Supabase Auth identity provider. | Architecture Team |
-| 2026-07-27 | 0.4.0 | Added ADR-006 for MinIO object storage. | Architecture Team |
+| 2026-07-27 | 0.4.0 | Added ADR-007 for MinIO object storage. | Architecture Team |
