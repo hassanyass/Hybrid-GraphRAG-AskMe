@@ -1,0 +1,140 @@
+# =============================================================================
+# Hybrid GraphRAG Enterprise Knowledge Assistant
+# Docker Compose — Service Orchestration
+# =============================================================================
+# STATUS: Phase 0 — Skeleton only. Service configurations will be completed
+#         in their respective implementation phases.
+#
+# USAGE:
+#   docker-compose up -d          # Start all services
+#   docker-compose down           # Stop all services
+#   docker-compose logs -f <svc>  # Follow logs for a specific service
+# =============================================================================
+
+version: "3.9"
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Backend — FastAPI Application Server
+  # Phase: 1 (Backend Foundation)
+  # Responsibility: Serves the REST API, handles business logic, and
+  #                 orchestrates communication between all subsystems.
+  # ---------------------------------------------------------------------------
+  # backend:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   container_name: hybridgraphrag-backend
+  #   ports:
+  #     - "${BACKEND_PORT:-8000}:8000"
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     - postgres
+  #     - qdrant
+  #     - neo4j
+  #     - minio
+  #   volumes:
+  #     - ./backend:/app
+  #   restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Frontend — React Application
+  # Phase: 9 (Frontend)
+  # Responsibility: Serves the user-facing web interface for document
+  #                 management, search, and AI-assisted interactions.
+  # ---------------------------------------------------------------------------
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   container_name: hybridgraphrag-frontend
+  #   ports:
+  #     - "3000:3000"
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     - backend
+  #   restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — Relational Database
+  # Phase: 2 (Database Layer)
+  # Responsibility: Stores structured application data including user accounts,
+  #                 document metadata, processing status, and audit logs.
+  # ---------------------------------------------------------------------------
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: hybridgraphrag-postgres
+  #   ports:
+  #     - "${POSTGRES_PORT:-5432}:5432"
+  #   environment:
+  #     POSTGRES_DB: ${POSTGRES_DATABASE}
+  #     POSTGRES_USER: ${POSTGRES_USER}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Qdrant — Vector Database
+  # Phase: 6 (Knowledge Storage)
+  # Responsibility: Stores and indexes dense vector embeddings for semantic
+  #                 similarity search across document chunks.
+  # ---------------------------------------------------------------------------
+  # qdrant:
+  #   image: qdrant/qdrant:latest
+  #   container_name: hybridgraphrag-qdrant
+  #   ports:
+  #     - "${QDRANT_PORT:-6333}:6333"
+  #   volumes:
+  #     - qdrant_data:/qdrant/storage
+  #   restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Neo4j — Graph Database
+  # Phase: 6 (Knowledge Storage)
+  # Responsibility: Stores the knowledge graph containing entities,
+  #                 relationships, and hierarchies extracted from documents.
+  # ---------------------------------------------------------------------------
+  # neo4j:
+  #   image: neo4j:5-community
+  #   container_name: hybridgraphrag-neo4j
+  #   ports:
+  #     - "7474:7474"   # HTTP browser interface
+  #     - "7687:7687"   # Bolt protocol
+  #   environment:
+  #     NEO4J_AUTH: ${NEO4J_USERNAME}/${NEO4J_PASSWORD}
+  #   volumes:
+  #     - neo4j_data:/data
+  #   restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # MinIO — Object Storage
+  # Phase: 4 (Document Management)
+  # Responsibility: Provides S3-compatible object storage for uploaded
+  #                 documents and processed artifacts.
+  # ---------------------------------------------------------------------------
+  # minio:
+  #   image: minio/minio:latest
+  #   container_name: hybridgraphrag-minio
+  #   command: server /data --console-address ":9001"
+  #   ports:
+  #     - "9000:9000"   # API endpoint
+  #     - "9001:9001"   # Console UI
+  #   environment:
+  #     MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+  #     MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+  #   volumes:
+  #     - minio_data:/data
+  #   restart: unless-stopped
+
+# =============================================================================
+# Volumes — Persistent Data Storage
+# =============================================================================
+# volumes:
+#   postgres_data:
+#   qdrant_data:
+#   neo4j_data:
+#   minio_data:
