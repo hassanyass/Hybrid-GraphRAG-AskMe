@@ -11,6 +11,7 @@ from backend.app.auth.schemas import AuthenticatedUser
 from backend.app.database.session import get_db_session
 from backend.app.schemas.document_schema import DocumentResponse, DocumentUploadResponse
 from backend.app.services.document_service import DocumentService
+from backend.app.services.pipeline_service import PipelineService
 
 router = APIRouter(prefix="/api/v1/documents", tags=["Documents"])
 
@@ -82,3 +83,24 @@ async def delete_document(
     """Delete a document and its storage."""
     service = DocumentService(db)
     await service.delete_document(document_id, current_user.id)
+
+
+@router.post("/{document_id}/process", status_code=status.HTTP_202_ACCEPTED)
+async def process_document(
+    document_id: uuid.UUID,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """
+    Trigger the AI pipeline for an uploaded document.
+
+    Parses the document, splits into chunks, generates embeddings,
+    and persists results to PostgreSQL.
+    """
+    pipeline = PipelineService(db)
+    doc = await pipeline.process_document(document_id, current_user.id)
+    return {
+        "document_id": str(doc.id),
+        "status": doc.status.value,
+        "message": "Document processing completed successfully.",
+    }

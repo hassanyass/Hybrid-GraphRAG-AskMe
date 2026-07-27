@@ -71,6 +71,21 @@ Stores AI-extracted metadata for documents.
 - `chunk_count` (Integer, Nullable)
 - `created_at` (DateTime)
 
+### `document_chunks`
+Stores text chunks extracted from documents, including tracking fields for future AI pipeline stages.
+- `id` (UUID, Primary Key)
+- `document_id` (UUID, Foreign Key)
+- `chunk_index` (Integer)
+- `content` (Text)
+- `token_count` (Integer, Nullable)
+- `embedding_id` (String, Nullable) — ID in Qdrant.
+- `vector_status` (Enum: PENDING, EMBEDDED, INDEXED, FAILED)
+- `embedding_model` (String, Nullable)
+- `entity_extraction_status` (Enum: PENDING, EXTRACTING, COMPLETED, FAILED)
+- `graph_sync_status` (Enum: PENDING, SYNCED, FAILED)
+- `created_at` (DateTime)
+- `updated_at` (DateTime)
+
 ### `conversations`
 Stores chat sessions.
 - `id` (UUID, Primary Key)
@@ -100,6 +115,7 @@ Stores dynamic application configuration.
 - **Raw Storage:** MinIO Object Storage holds the original uploaded files securely.
 - **Relational Metadata:** PostgreSQL stores lightweight tracking metadata (filename, size, type, `storage_path`) to allow rapid querying and association with user IDs. PostgreSQL *never* stores binary document blobs directly.
 - **Document Metadata:** An optional one-to-one associated table (`document_metadata`) tracks data extracted by the AI pipeline (e.g., page count, language, chunks).
+- **Document Chunks:** A one-to-many associated table (`document_chunks`) stores the text segments of the document.
 
 ---
 
@@ -110,6 +126,7 @@ Stores dynamic application configuration.
 | User | Document | One-to-Many | `documents.user_id` | Delete Orphan |
 | User | Conversation | One-to-Many | `conversations.user_id` | Delete Orphan |
 | Document | DocumentMetadata| One-to-One | `document_metadata.document_id` | Delete Orphan |
+| Document | DocumentChunk | One-to-Many | `document_chunks.document_id` | Delete Orphan |
 | Conversation| Message | One-to-Many | `messages.conversation_id` | Delete Orphan |
 
 ---
@@ -128,19 +145,21 @@ Stores dynamic application configuration.
 
 ## 7. Future Expansion
 
-- **Phase 4:** Add detailed MinIO bucket design for document storage.
+- **Phase 4:** Add detailed MinIO bucket design for document storage. (Completed)
+- **Phase 5:** Add DocumentChunk design for semantic vector chunks. (Completed)
 - **Phase 6:** Add Qdrant Collection design for semantic vector chunks.
 - **Phase 6:** Add Neo4j Graph Model for extracted entities and relationships.
 
 ---
 
-## ER Diagram (Placeholder)
+## ER Diagram (Updated Phase 5)
 
 ```mermaid
 erDiagram
     users ||--o{ documents : owns
     users ||--o{ conversations : owns
     documents ||--|| document_metadata : has
+    documents ||--o{ document_chunks : splits_into
     conversations ||--o{ messages : contains
 
     users {
@@ -156,6 +175,11 @@ erDiagram
     document_metadata {
         UUID id PK
         UUID document_id FK
+    }
+    document_chunks {
+        UUID id PK
+        UUID document_id FK
+        string vector_status
     }
     conversations {
         UUID id PK
