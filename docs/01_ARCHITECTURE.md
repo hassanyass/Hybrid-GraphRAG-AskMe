@@ -95,7 +95,7 @@ The Hybrid GraphRAG Enterprise Knowledge Assistant is an AI-powered system that 
 ### 5.5 Data Storage Layer
 
 - **Technology:** PostgreSQL (relational), MinIO (objects)
-- **Responsibility:** Stores structured application data (users, documents, metadata, audit logs) and raw document files.
+- **Responsibility:** PostgreSQL manages structured application data including users, documents metadata, conversations, and system configuration. MinIO stores raw document files.
 - **Phase:** 2, 4
 
 ---
@@ -131,7 +131,7 @@ The Hybrid GraphRAG Enterprise Knowledge Assistant is an AI-powered system that 
 |---|---|
 | Phase 0 — Foundation | ✅ Completed |
 | Phase 1 — Backend Foundation | ⬜ Not Started |
-| Phase 2 — Database Layer | ⬜ Not Started |
+| Phase 2 — Database Layer | ✅ Completed |
 | Phase 3 — Authentication | ⬜ Not Started |
 | Phase 4 — Document Management | ⬜ Not Started |
 | Phase 5 — AI Pipeline | ⬜ Not Started |
