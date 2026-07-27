@@ -89,8 +89,8 @@ class PipelineService:
             if not parse_result.text.strip():
                 raise ValueError("No text content could be extracted from the document.")
 
-            # 5. Chunk text
-            chunk_results = self._chunker.chunk(parse_result.text)
+            # 5. Chunk text using pages to preserve metadata
+            chunk_results = self._chunker.chunk(parse_result.pages)
             logger.info("Document %s split into %d chunks", document_id, len(chunk_results))
 
             if not chunk_results:
@@ -117,6 +117,8 @@ class PipelineService:
                     chunk_index=chunk_result.chunk_index,
                     content=chunk_result.content,
                     token_count=chunk_result.token_count,
+                    page_number=chunk_result.page_number,
+                    language=parse_result.language,
                     vector_status=VectorStatus.EMBEDDED,
                     embedding_model=embedding_result.model_name,
                     # embedding_id stays NULL until Phase 6 (Qdrant indexing)

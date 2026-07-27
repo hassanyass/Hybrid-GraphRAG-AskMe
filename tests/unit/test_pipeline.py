@@ -12,7 +12,7 @@ import pytest
 import pytest_asyncio
 
 from ai_pipeline.chunking.recursive_chunker import ChunkResult, RecursiveChunker
-from ai_pipeline.parsing.base_parser import ParseResult
+from ai_pipeline.parsing.base_parser import ParsedPage, ParseResult
 from ai_pipeline.parsing.docx_parser import DocxParser
 from ai_pipeline.parsing.parser_factory import get_parser
 from ai_pipeline.parsing.pdf_parser import PdfParser
@@ -31,12 +31,15 @@ class TestTxtParser:
         parser = TxtParser()
         result = parser.parse(b"Hello, world!\nThis is a test.")
         assert result.text == "Hello, world!\nThis is a test."
-        assert result.page_count is None
+        assert len(result.pages) == 1
+        assert result.pages[0].page_number == 1
+        assert result.page_count == 1
 
     def test_parse_empty(self):
         parser = TxtParser()
         result = parser.parse(b"")
         assert result.text == ""
+        assert len(result.pages) == 0
 
     def test_parse_latin1_fallback(self):
         # Latin-1 encoded text with non-UTF-8 byte
@@ -78,37 +81,40 @@ class TestRecursiveChunker:
 
     def test_chunk_basic(self):
         chunker = RecursiveChunker(chunk_size=50, chunk_overlap=10)
-        text = "A" * 200
-        results = chunker.chunk(text)
+        pages = [ParsedPage(page_number=1, text="A" * 200)]
+        results = chunker.chunk(pages)
         assert len(results) > 1
         assert all(isinstance(r, ChunkResult) for r in results)
         assert results[0].chunk_index == 0
         assert results[1].chunk_index == 1
+        assert results[0].page_number == 1
 
     def test_chunk_small_text(self):
         chunker = RecursiveChunker(chunk_size=1000, chunk_overlap=200)
-        text = "Short text."
-        results = chunker.chunk(text)
+        pages = [ParsedPage(page_number=2, text="Short text.")]
+        results = chunker.chunk(pages)
         assert len(results) == 1
         assert results[0].content == "Short text."
         assert results[0].chunk_index == 0
+        assert results[0].page_number == 2
 
     def test_chunk_empty_text(self):
         chunker = RecursiveChunker()
-        results = chunker.chunk("")
+        results = chunker.chunk([])
         assert results == []
 
     def test_chunk_preserves_order(self):
         chunker = RecursiveChunker(chunk_size=20, chunk_overlap=5)
-        text = "First paragraph.\n\nSecond paragraph.\n\nThird paragraph."
-        results = chunker.chunk(text)
+        pages = [ParsedPage(page_number=1, text="First paragraph.\n\nSecond paragraph.\n\nThird paragraph.")]
+        results = chunker.chunk(pages)
         for i, r in enumerate(results):
             assert r.chunk_index == i
+            assert r.page_number == 1
 
     def test_chunk_token_count(self):
         chunker = RecursiveChunker(chunk_size=100, chunk_overlap=10)
-        text = "Hello world. " * 50
-        results = chunker.chunk(text)
+        pages = [ParsedPage(page_number=1, text="Hello world. " * 50)]
+        results = chunker.chunk(pages)
         for r in results:
             assert r.token_count == len(r.content)
 

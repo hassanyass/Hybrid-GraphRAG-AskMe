@@ -6,7 +6,7 @@ Handles plain text files with encoding detection.
 
 import logging
 
-from ai_pipeline.parsing.base_parser import BaseParser, ParseResult
+from ai_pipeline.parsing.base_parser import BaseParser, ParsedPage, ParseResult
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +34,9 @@ class TxtParser(BaseParser):
                 logger.info("TXT file decoded using latin-1 fallback.")
 
             text = text.strip()
+            pages = [ParsedPage(page_number=1, text=text)] if text else []
             logger.info("Parsed TXT: %d characters", len(text))
-            return ParseResult(text=text, page_count=None)
+            return ParseResult(pages=pages, page_count=1 if pages else 0)
 
         except Exception as e:
             logger.error("Failed to parse TXT: %s", e)

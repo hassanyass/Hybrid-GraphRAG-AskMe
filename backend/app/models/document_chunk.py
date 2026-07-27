@@ -103,6 +103,16 @@ class DocumentChunk(Base):
         nullable=True,
         comment="Number of tokens in the chunk (model-dependent).",
     )
+    page_number: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="The page number this chunk originated from (1-indexed).",
+    )
+    language: Mapped[str | None] = mapped_column(
+        String(10),
+        nullable=True,
+        comment="Detected language for this specific chunk.",
+    )
 
     # ------------------------------------------------------------------
     # Qdrant Vector Storage Tracking (Phase 6)

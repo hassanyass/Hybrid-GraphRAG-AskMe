@@ -18,6 +18,10 @@ CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1000"))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "200"))
 
 
+from ai_pipeline.parsing.base_parser import ParsedPage
+from langchain_core.documents import Document as LangchainDocument
+
+
 @dataclass
 class ChunkResult:
     """A single chunk produced from a document."""
@@ -25,6 +29,7 @@ class ChunkResult:
     chunk_index: int
     content: str
     token_count: int
+    page_number: int | None = None
 
 
 class RecursiveChunker:
@@ -56,31 +61,45 @@ class RecursiveChunker:
             self._chunk_overlap,
         )
 
-    def chunk(self, text: str) -> list[ChunkResult]:
+    def chunk(self, pages: list[ParsedPage]) -> list[ChunkResult]:
         """
-        Split text into chunks.
+        Split text into chunks while preserving metadata.
 
         Args:
-            text: The full document text to split.
+            pages: List of ParsedPage objects containing text and metadata.
 
         Returns:
             Ordered list of ChunkResult objects.
         """
-        if not text or not text.strip():
-            logger.warning("Empty text provided to chunker.")
+        if not pages:
+            logger.warning("Empty pages provided to chunker.")
             return []
 
-        raw_chunks = self._splitter.split_text(text)
+        # Convert ParsedPage to Langchain Document
+        lc_docs = [
+            LangchainDocument(
+                page_content=page.text,
+                metadata={"page_number": page.page_number}
+            )
+            for page in pages
+            if page.text.strip()
+        ]
+
+        if not lc_docs:
+            return []
+
+        raw_chunks = self._splitter.split_documents(lc_docs)
 
         results: list[ChunkResult] = []
-        for index, chunk_text in enumerate(raw_chunks):
+        for index, lc_chunk in enumerate(raw_chunks):
             results.append(
                 ChunkResult(
                     chunk_index=index,
-                    content=chunk_text,
-                    token_count=len(chunk_text),  # Character-level count; refined in future phases
+                    content=lc_chunk.page_content,
+                    token_count=len(lc_chunk.page_content),  # Character-level count
+                    page_number=lc_chunk.metadata.get("page_number"),
                 )
             )
 
-        logger.info("Produced %d chunks from %d characters of text.", len(results), len(text))
+        logger.info("Produced %d chunks from %d pages.", len(results), len(pages))
         return results

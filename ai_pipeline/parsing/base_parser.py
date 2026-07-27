@@ -10,11 +10,24 @@ from dataclasses import dataclass
 
 
 @dataclass
+class ParsedPage:
+    """Text content extracted from a single page."""
+    page_number: int
+    text: str
+
+
+@dataclass
 class ParseResult:
     """Result of parsing a document."""
 
-    text: str
+    pages: list[ParsedPage]
     page_count: int | None = None
+    language: str | None = None
+
+    @property
+    def text(self) -> str:
+        """Concatenated text of all pages for backward compatibility."""
+        return "\n\n".join(page.text for page in self.pages)
 
 
 class BaseParser(ABC):
