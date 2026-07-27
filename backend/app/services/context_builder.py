@@ -10,7 +10,8 @@ from collections import defaultdict
 
 from backend.app.models.retrieval import HybridSearchResult
 
-MAX_CONTEXT_TOKENS = int(os.getenv("MAX_CONTEXT_TOKENS", "4000"))
+_tokens = os.getenv("MAX_CONTEXT_TOKENS")
+MAX_CONTEXT_TOKENS = int(_tokens) if _tokens else 4000
 # Rough estimation: 1 token ~= 4 chars
 MAX_CONTEXT_CHARS = MAX_CONTEXT_TOKENS * 4
 

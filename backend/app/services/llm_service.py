@@ -13,10 +13,15 @@ from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai").lower()
-LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
-LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.0"))
-LLM_MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "1024"))
+LLM_PROVIDER = os.getenv("LLM_PROVIDER") or "openai"
+LLM_PROVIDER = LLM_PROVIDER.lower()
+LLM_MODEL = os.getenv("LLM_MODEL") or "gpt-4o-mini"
+
+_temp = os.getenv("LLM_TEMPERATURE")
+LLM_TEMPERATURE = float(_temp) if _temp else 0.0
+
+_tokens = os.getenv("LLM_MAX_TOKENS")
+LLM_MAX_TOKENS = int(_tokens) if _tokens else 1024
 
 
 class LLMProvider(ABC):

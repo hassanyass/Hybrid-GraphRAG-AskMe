@@ -18,9 +18,11 @@ from backend.app.repositories.chunk_repository import ChunkRepository
 
 logger = logging.getLogger(__name__)
 
-# Configurable Weights
-VECTOR_WEIGHT = float(os.getenv("VECTOR_WEIGHT", "0.7"))
-GRAPH_WEIGHT = float(os.getenv("GRAPH_WEIGHT", "0.3"))
+_vweight = os.getenv("VECTOR_WEIGHT")
+VECTOR_WEIGHT = float(_vweight) if _vweight else 0.7
+
+_gweight = os.getenv("GRAPH_WEIGHT")
+GRAPH_WEIGHT = float(_gweight) if _gweight else 0.3
 
 
 class RerankerService:
