@@ -53,19 +53,13 @@ def _get_sync_database_url() -> str:
     """Build a synchronous PostgreSQL URL from environment variables."""
     database_url = os.getenv("DATABASE_URL")
 
-    if database_url:
-        # Normalise to sync driver for Alembic
-        url = database_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
-        url = url.replace("postgresql://", "postgresql+psycopg2://")
-        return url
+    if not database_url:
+        raise ValueError("DATABASE_URL environment variable is not set.")
 
-    host = os.getenv("POSTGRES_HOST", "localhost")
-    port = os.getenv("POSTGRES_PORT", "5432")
-    database = os.getenv("POSTGRES_DATABASE", "hybridgraphrag")
-    user = os.getenv("POSTGRES_USER", "postgres")
-    password = os.getenv("POSTGRES_PASSWORD", "")
-
-    return f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{database}"
+    # Normalise to sync driver for Alembic
+    url = database_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+    url = url.replace("postgresql://", "postgresql+psycopg2://")
+    return url
 
 
 def run_migrations_offline() -> None:

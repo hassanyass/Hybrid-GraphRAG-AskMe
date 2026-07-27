@@ -22,40 +22,26 @@ def _build_database_url() -> str:
     """
     Build the async database URL from environment variables.
 
-    Supports either a single DATABASE_URL variable or individual
-    POSTGRES_* variables. The async driver (asyncpg) is enforced.
+    Expects a single DATABASE_URL environment variable, such as
+    one provided by Supabase.
 
     Returns:
         Async-compatible PostgreSQL connection string.
 
     Raises:
-        ValueError: If required database configuration is missing.
+        ValueError: If DATABASE_URL is missing.
     """
     database_url = os.getenv("DATABASE_URL")
 
-    if database_url:
-        # Ensure the URL uses the async driver
-        if database_url.startswith("postgresql://"):
-            database_url = database_url.replace(
-                "postgresql://", "postgresql+asyncpg://", 1
-            )
-        return database_url
+    if not database_url:
+        raise ValueError("DATABASE_URL environment variable is not set.")
 
-    # Build from individual variables
-    host = os.getenv("POSTGRES_HOST")
-    port = os.getenv("POSTGRES_PORT", "5432")
-    database = os.getenv("POSTGRES_DATABASE")
-    user = os.getenv("POSTGRES_USER")
-    password = os.getenv("POSTGRES_PASSWORD")
-
-    if not all([host, database, user, password]):
-        raise ValueError(
-            "Database configuration is incomplete. "
-            "Provide either DATABASE_URL or all POSTGRES_* variables "
-            "(POSTGRES_HOST, POSTGRES_DATABASE, POSTGRES_USER, POSTGRES_PASSWORD)."
+    # Ensure the URL uses the async driver
+    if database_url.startswith("postgresql://"):
+        database_url = database_url.replace(
+            "postgresql://", "postgresql+asyncpg://", 1
         )
-
-    return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}"
+    return database_url
 
 
 # ---------------------------------------------------------------------------
@@ -70,6 +56,7 @@ engine = create_async_engine(
     pool_size=int(os.getenv("DB_POOL_SIZE", "5")),
     max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "10")),
     pool_pre_ping=True,
+    pool_recycle=int(os.getenv("DB_POOL_RECYCLE", "1800")),
 )
 
 async_session_factory = async_sessionmaker(

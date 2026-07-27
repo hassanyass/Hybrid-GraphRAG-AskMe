@@ -20,7 +20,8 @@ The data storage layer of the Hybrid GraphRAG Enterprise Knowledge Assistant man
 
 ## 2. Database Technology
 
-- **Database Engine:** PostgreSQL
+- **Database Engine:** Supabase PostgreSQL
+- **Connection Configuration:** Configured exclusively via `DATABASE_URL` environment variable.
 - **ORM:** SQLAlchemy 2.0 (Async)
 - **Migration Tool:** Alembic
 - **Validation:** Pydantic 2.x

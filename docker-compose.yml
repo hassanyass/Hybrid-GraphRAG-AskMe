@@ -31,7 +31,6 @@ services:
   #   env_file:
   #     - .env
   #   depends_on:
-  #     - postgres
   #     - qdrant
   #     - neo4j
   #     - minio
@@ -59,23 +58,12 @@ services:
   #   restart: unless-stopped
 
   # ---------------------------------------------------------------------------
-  # PostgreSQL — Relational Database
+  # PostgreSQL — Supabase (External Managed Database)
   # Phase: 2 (Database Layer)
-  # Responsibility: Stores structured application data including user accounts,
-  #                 document metadata, processing status, and audit logs.
+  # Responsibility: Stores structured application data.
+  # Note: Managed externally via Supabase. Configured via DATABASE_URL.
+  #       Not deployed via Docker Compose.
   # ---------------------------------------------------------------------------
-  # postgres:
-  #   image: postgres:16-alpine
-  #   container_name: hybridgraphrag-postgres
-  #   ports:
-  #     - "${POSTGRES_PORT:-5432}:5432"
-  #   environment:
-  #     POSTGRES_DB: ${POSTGRES_DATABASE}
-  #     POSTGRES_USER: ${POSTGRES_USER}
-  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   restart: unless-stopped
 
   # ---------------------------------------------------------------------------
   # Qdrant — Vector Database
@@ -134,7 +122,6 @@ services:
 # Volumes — Persistent Data Storage
 # =============================================================================
 # volumes:
-#   postgres_data:
 #   qdrant_data:
 #   neo4j_data:
 #   minio_data:

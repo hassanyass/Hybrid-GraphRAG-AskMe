@@ -21,9 +21,11 @@ This document establishes the engineering standards, coding conventions, and dev
 | **No hard-coded values** | All configurable values must be loaded from environment variables or configuration files. |
 | **No API keys in source code** | Secrets must never appear in source files, commits, or logs. Use `.env` files locally and secret managers in production. |
 | **Environment-based configuration** | All configuration is driven by environment variables. See `.env.example` for the complete template. |
+| **Database configuration** | Supabase PostgreSQL is the relational database provider. `DATABASE_URL` is the single source of truth for the connection. Individual variables like `POSTGRES_HOST` are deprecated. |
 | **Clean architecture** | Follow separation of concerns with clearly defined layers. No business logic in controllers; no database access in services. |
 | **Reusable components** | Extract common patterns into shared utilities. Avoid code duplication across modules. |
 | **Business logic isolation** | Business logic resides exclusively in the service layer, never in API controllers or repository methods. |
+| **Migrations** | Database schema changes must be managed through Alembic migrations exclusively. |
 
 ---
 
