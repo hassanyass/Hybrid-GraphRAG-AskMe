@@ -20,6 +20,12 @@ class UserRepository(BaseRepository[User]):
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session)
 
+    async def get_by_supabase_id(self, supabase_user_id: str) -> User | None:
+        """Find a user by their Supabase Auth user ID."""
+        stmt = select(User).where(User.supabase_user_id == supabase_user_id)
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_by_email(self, email: str) -> User | None:
         """Find a user by their email address."""
         stmt = select(User).where(User.email == email)

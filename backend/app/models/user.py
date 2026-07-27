@@ -2,7 +2,8 @@
 User model.
 
 Stores application users and serves as the ownership root for
-documents and conversations.
+documents and conversations. The ``supabase_user_id`` field links
+this record to the corresponding Supabase Auth identity.
 """
 
 import uuid
@@ -26,6 +27,13 @@ class User(Base):
         default=uuid.uuid4,
         comment="Unique user identifier.",
     )
+    supabase_user_id: Mapped[str] = mapped_column(
+        String(255),
+        unique=True,
+        nullable=False,
+        index=True,
+        comment="Supabase Auth user ID (auth.users.id).",
+    )
     email: Mapped[str] = mapped_column(
         String(255),
         unique=True,
@@ -39,6 +47,13 @@ class User(Base):
         nullable=False,
         index=True,
         comment="Display username — must be unique.",
+    )
+    role: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="USER",
+        server_default="USER",
+        comment="Application role: USER or ADMIN.",
     )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
@@ -77,4 +92,4 @@ class User(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<User id={self.id} username={self.username!r}>"
+        return f"<User id={self.id} username={self.username!r} role={self.role!r}>"

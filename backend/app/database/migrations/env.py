@@ -12,12 +12,15 @@ import sys
 from logging.config import fileConfig
 
 from alembic import context
+from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
+
+load_dotenv(".env")
 
 # ---------------------------------------------------------------------------
 # Ensure the project root is on sys.path so that model imports work.
 # ---------------------------------------------------------------------------
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")))
 
 # ---------------------------------------------------------------------------
 # Alembic Config object — provides access to alembic.ini values.

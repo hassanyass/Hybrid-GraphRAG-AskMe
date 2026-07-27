@@ -25,6 +25,10 @@ class UserCreate(BaseModel):
         max_length=100,
         description="Display username.",
     )
+    supabase_user_id: str = Field(
+        ...,
+        description="Supabase Auth user ID.",
+    )
 
 
 class UserUpdate(BaseModel):
@@ -50,8 +54,10 @@ class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    supabase_user_id: str
     email: str
     username: str
+    role: str
     is_active: bool
     created_at: datetime
     updated_at: datetime

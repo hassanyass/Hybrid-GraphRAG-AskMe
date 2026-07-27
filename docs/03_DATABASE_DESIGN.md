@@ -115,6 +115,8 @@ Stores dynamic application configuration.
 - All schema changes must be generated via Alembic auto-generate and manually reviewed.
 - Migrations are run synchronously using `psycopg2` driver.
 - The application connects asynchronously using `asyncpg` driver.
+- **Initial Migration:** `001_initial_database_schema`
+- **Deployment:** Managed externally by Supabase. Schema deployed directly to Supabase PostgreSQL using `alembic upgrade head`.
 
 ---
 

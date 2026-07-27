@@ -115,19 +115,65 @@ Each decision follows this structure:
 
 ---
 
+### ADR-004: Alembic for Database Schema Versioning
+
+- **Date:** 2026-07-27
+- **Status:** Accepted
+
+- **Context:**
+  The system requires reproducible, controlled, and production-safe schema changes.
+
+- **Decision:**
+  Adopted **Alembic** for database schema version control alongside SQLAlchemy.
+
+- **Alternatives Considered:**
+  | Alternative | Reason for Rejection |
+  |---|---|
+  | Manual SQL scripts | Prone to human error, hard to version control and rollback. |
+  | SQLAlchemy `create_all()` | Cannot manage updates to existing tables in production. |
+
+- **Consequences:**
+  - Ensures reproducible, controlled, and production-safe database changes.
+  - Requires developers to generate and review migration scripts for any model change.
+
+---
+
+### ADR-005: Supabase Auth as Identity Provider
+
+- **Date:** 2026-07-27
+- **Status:** Accepted
+
+- **Context:**
+  The application requires robust authentication, user management, and JWT token issuance without the operational overhead of building and securing custom password handling.
+
+- **Decision:**
+  Use **Supabase Auth** as the identity provider.
+
+- **Alternatives Considered:**
+  | Alternative | Reason for Rejection |
+  |---|---|
+  | Custom JWT / Password Hashing | High security risk; requires writing custom password reset, email verification, and OAuth flows. |
+  | Auth0 | Excellent, but Supabase integrates natively with the PostgreSQL stack already chosen. |
+  | Keycloak | Too heavy and complex for the current requirements. |
+
+- **Consequences:**
+  - Provides secure authentication, JWT management, and avoids implementing custom authentication logic.
+  - The backend only needs to validate tokens and maintain a synchronized user profile table, eliminating password storage risks.
+
+---
+
 ## 4. Pending Decisions
 
 The following decisions are anticipated in upcoming phases:
 
 | ID | Topic | Expected Phase |
 |---|---|---|
-| ADR-004 | Authentication strategy (JWT vs. OAuth2) | Phase 3 |
-| ADR-005 | Document chunking strategy selection | Phase 5 |
-| ADR-006 | Embedding model configuration | Phase 5 |
-| ADR-007 | Graph schema design | Phase 6 |
-| ADR-008 | Retrieval fusion algorithm | Phase 7 |
-| ADR-009 | Prompt engineering framework | Phase 8 |
-| ADR-010 | Deployment target (Docker Compose vs. Kubernetes) | Phase 10 |
+| ADR-006 | Document chunking strategy selection | Phase 5 |
+| ADR-007 | Embedding model configuration | Phase 5 |
+| ADR-008 | Graph schema design | Phase 6 |
+| ADR-009 | Retrieval fusion algorithm | Phase 7 |
+| ADR-010 | Prompt engineering framework | Phase 8 |
+| ADR-011 | Deployment target (Docker Compose vs. Kubernetes) | Phase 10 |
 
 ---
 
@@ -136,3 +182,5 @@ The following decisions are anticipated in upcoming phases:
 | Date | Version | Change | Author |
 |---|---|---|---|
 | 2026-07-27 | 0.1.0 | Initial decision log with ADR-001, ADR-002, and ADR-003. | Architecture Team |
+| 2026-07-27 | 0.2.0 | Added ADR-004 for Alembic database migrations. | Architecture Team |
+| 2026-07-27 | 0.3.0 | Added ADR-005 for Supabase Auth identity provider. | Architecture Team |
