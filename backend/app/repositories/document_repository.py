@@ -71,6 +71,19 @@ class DocumentRepository(BaseRepository[Document]):
         await self._session.refresh(document)
         return document
 
+    async def get_document_by_id_and_user(
+        self,
+        document_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> Document | None:
+        """Retrieve a document by ID, strictly enforcing user ownership."""
+        stmt = select(Document).where(
+            Document.id == document_id,
+            Document.user_id == user_id,
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def create_metadata(
         self,
         metadata: DocumentMetadata,

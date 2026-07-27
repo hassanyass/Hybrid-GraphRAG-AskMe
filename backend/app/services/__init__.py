@@ -1,10 +1,7 @@
-"""
-User service.
+from backend.app.services.document_service import DocumentService
+from backend.app.services.user_service import UserService
 
-Business logic layer for user management. Handles profile
-provisioning, retrieval, and updates. All database access is
-delegated to the UserRepository — no SQL in this layer.
-"""
+__all__ = ["UserService", "DocumentService"]
 
 from sqlalchemy.ext.asyncio import AsyncSession
 

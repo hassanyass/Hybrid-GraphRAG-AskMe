@@ -95,9 +95,15 @@ Stores dynamic application configuration.
 - `created_at` (DateTime)
 - `updated_at` (DateTime)
 
+### 4.2 Document Tracking and Storage Strategy
+
+- **Raw Storage:** MinIO Object Storage holds the original uploaded files securely.
+- **Relational Metadata:** PostgreSQL stores lightweight tracking metadata (filename, size, type, `storage_path`) to allow rapid querying and association with user IDs. PostgreSQL *never* stores binary document blobs directly.
+- **Document Metadata:** An optional one-to-one associated table (`document_metadata`) tracks data extracted by the AI pipeline (e.g., page count, language, chunks).
+
 ---
 
-## 5. Relationships
+## 5. Indexes and Constraints
 
 | From Entity | To Entity | Relationship Type | Foreign Key | Cascade Behavior |
 |---|---|---|---|---|

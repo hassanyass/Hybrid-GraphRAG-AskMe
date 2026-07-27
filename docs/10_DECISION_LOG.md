@@ -162,13 +162,37 @@ Each decision follows this structure:
 
 ---
 
+### ADR-006: MinIO for Document Object Storage
+
+- **Date:** 2026-07-27
+- **Status:** Accepted
+
+- **Context:**
+  The system needs a scalable, secure, and performant way to store raw uploaded documents before and during AI processing.
+
+- **Decision:**
+  Use **MinIO** as the S3-compatible object storage layer.
+
+- **Alternatives Considered:**
+  | Alternative | Reason for Rejection |
+  |---|---|
+  | PostgreSQL `BYTEA` | Bloats the relational database, heavily impacts backup/restore performance, and scales poorly for large binaries. |
+  | Local Filesystem | Not scalable across multiple backend instances; creates stateful API nodes. |
+  | AWS S3 | Vendor lock-in; requires external cloud connectivity for local development. |
+
+- **Consequences:**
+  - Separates large binary files from relational application data.
+  - Ensures a stateless API layer that can scale horizontally.
+  - Provides a standard S3-compatible API for future cloud migrations.
+
+---
+
 ## 4. Pending Decisions
 
 The following decisions are anticipated in upcoming phases:
 
 | ID | Topic | Expected Phase |
 |---|---|---|
-| ADR-006 | Document chunking strategy selection | Phase 5 |
 | ADR-007 | Embedding model configuration | Phase 5 |
 | ADR-008 | Graph schema design | Phase 6 |
 | ADR-009 | Retrieval fusion algorithm | Phase 7 |
@@ -184,3 +208,4 @@ The following decisions are anticipated in upcoming phases:
 | 2026-07-27 | 0.1.0 | Initial decision log with ADR-001, ADR-002, and ADR-003. | Architecture Team |
 | 2026-07-27 | 0.2.0 | Added ADR-004 for Alembic database migrations. | Architecture Team |
 | 2026-07-27 | 0.3.0 | Added ADR-005 for Supabase Auth identity provider. | Architecture Team |
+| 2026-07-27 | 0.4.0 | Added ADR-006 for MinIO object storage. | Architecture Team |

@@ -62,6 +62,11 @@ class Document(Base):
         nullable=False,
         comment="MIME type or file extension (e.g. 'application/pdf').",
     )
+    file_size: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        comment="File size in bytes.",
+    )
     storage_path: Mapped[str] = mapped_column(
         Text,
         nullable=False,
