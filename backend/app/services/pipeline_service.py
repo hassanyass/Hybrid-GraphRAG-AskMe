@@ -6,12 +6,15 @@ Orchestrates the complete document processing flow:
   2. Download raw file from MinIO
   3. Parse file → raw text
   4. Chunk text → list of chunks
-  5. Generate embeddings for all chunks
+  5. Contextualize and generate embeddings
   6. Persist DocumentChunk records to PostgreSQL
-  7. Update DocumentMetadata (page_count, chunk_count)
-  8. Update document status (PROCESSING → COMPLETED / FAILED)
+  7. Sync vectors to Qdrant
+  8. Trigger knowledge-graph extraction (background)
+  9. Update DocumentMetadata (page_count, chunk_count)
+  10. Update document status (PROCESSING → COMPLETED / FAILED)
 """
 
+import asyncio
 import io
 import logging
 import uuid
@@ -28,6 +31,7 @@ from backend.app.models.document_chunk import DocumentChunk, VectorStatus
 from backend.app.repositories.chunk_repository import ChunkRepository
 from backend.app.repositories.document_repository import DocumentRepository
 from backend.app.storage.storage_service import StorageService
+from backend.app.storage.qdrant_service import QdrantService
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +45,6 @@ class PipelineService:
         self._chunk_repo = ChunkRepository(session)
         self._storage = StorageService()
         self._embedder = EmbeddingService()
-        
-        from backend.app.storage.qdrant_service import QdrantService
         self._qdrant = QdrantService()
 
     async def process_document(
@@ -152,14 +154,21 @@ class PipelineService:
             self._qdrant.ensure_collection(dimension=embedding_result.dimension)
             self._qdrant.upsert_chunks(db_chunks, embedding_result.embeddings)
 
-            # 10. Update document metadata
+            # 10. Trigger knowledge-graph extraction (fire-and-forget background task)
+            asyncio.create_task(
+                self._run_graph_extraction(document_id),
+                name=f"graph-extraction-{document_id}",
+            )
+            logger.info("Scheduled graph extraction for document %s", document_id)
+
+            # 11. Update document metadata
             await self._update_metadata(
                 doc=doc,
                 page_count=parse_result.page_count,
                 chunk_count=len(db_chunks),
             )
 
-            # 11. Mark as COMPLETED
+            # 12. Mark as COMPLETED
             updated_doc = await self._doc_repo.update_status(document_id, DocumentStatus.COMPLETED)
             logger.info("Pipeline completed for document %s", document_id)
             return updated_doc
@@ -207,3 +216,22 @@ class PipelineService:
             await self._doc_repo.create_metadata(metadata)
 
         await self._session.flush()
+
+    async def _run_graph_extraction(self, document_id: uuid.UUID) -> None:
+        """
+        Background task: run entity extraction and Neo4j sync for a document.
+
+        Uses its own database session so it is fully independent of the
+        main pipeline transaction.
+        """
+        from backend.app.database.session import async_session_factory
+        from backend.app.services.graph_extraction_service import GraphExtractionService
+
+        try:
+            async with async_session_factory() as session:
+                graph_service = GraphExtractionService(session)
+                await graph_service.process_chunks(document_id)
+                await session.commit()
+            logger.info("Graph extraction completed for document %s", document_id)
+        except Exception as e:
+            logger.error("Graph extraction failed for document %s: %s", document_id, e)
