@@ -104,24 +104,22 @@ services:
   # Responsibility: Provides S3-compatible object storage for uploaded
   #                 documents and processed artifacts.
   # ---------------------------------------------------------------------------
-  # minio:
-  #   image: minio/minio:latest
-  #   container_name: hybridgraphrag-minio
-  #   command: server /data --console-address ":9001"
-  #   ports:
-  #     - "9000:9000"   # API endpoint
-  #     - "9001:9001"   # Console UI
-  #   environment:
-  #     MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
-  #     MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
-  #   volumes:
-  #     - minio_data:/data
-  #   restart: unless-stopped
+  minio:
+    image: minio/minio:latest
+    container_name: hybridgraphrag-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"   # API endpoint
+      - "9001:9001"   # Console UI
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
 
 # =============================================================================
 # Volumes — Persistent Data Storage
 # =============================================================================
-# volumes:
-#   qdrant_data:
-#   neo4j_data:
-#   minio_data:
+volumes:
+  minio_data:

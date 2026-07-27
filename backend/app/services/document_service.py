@@ -14,6 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.models.document import Document, DocumentStatus
 from backend.app.repositories.document_repository import DocumentRepository
 from backend.app.storage.storage_service import StorageService
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Configuration
 MAX_UPLOAD_SIZE_MB = int(os.getenv("MAX_UPLOAD_SIZE_MB", "20"))
@@ -46,13 +49,16 @@ class DocumentService:
         """
         # Validation
         if file_size == 0:
+            logger.warning("Upload failed: file size is 0 bytes for user %s", user_id)
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "File is empty.")
         if file_size > MAX_UPLOAD_SIZE_BYTES:
+            logger.warning("Upload failed: file size %s exceeds limit %s for user %s", file_size, MAX_UPLOAD_SIZE_MB, user_id)
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
                 f"File exceeds maximum allowed size of {MAX_UPLOAD_SIZE_MB}MB.",
             )
         if content_type not in ALLOWED_MIME_TYPES:
+            logger.warning("Upload failed: unsupported content type %s for user %s", content_type, user_id)
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
                 f"Unsupported file type. Allowed types: {', '.join(ALLOWED_MIME_TYPES)}",
@@ -76,8 +82,10 @@ class DocumentService:
             storage_path=storage_path,
             status=DocumentStatus.UPLOADED,
         )
-
-        return await self._repo.create(doc)
+        
+        created_doc = await self._repo.create(doc)
+        logger.info("Successfully uploaded document %s (ID: %s) for user %s", filename, created_doc.id, user_id)
+        return created_doc
 
     async def get_user_documents(self, user_id: uuid.UUID) -> list[Document]:
         """List documents owned by the user."""
@@ -89,6 +97,7 @@ class DocumentService:
         """Retrieve a document, ensuring it belongs to the user."""
         doc = await self._repo.get_document_by_id_and_user(document_id, user_id)
         if not doc:
+            logger.warning("Document access denied or not found: doc %s, user %s", document_id, user_id)
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Document not found.")
         return doc
 
@@ -101,3 +110,4 @@ class DocumentService:
 
         # Delete from DB
         await self._repo.delete(doc)
+        logger.info("Successfully deleted document %s for user %s", document_id, user_id)

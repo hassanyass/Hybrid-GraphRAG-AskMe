@@ -13,6 +13,9 @@ from typing import BinaryIO
 
 from minio.error import S3Error
 from urllib3.exceptions import MaxRetryError
+import logging
+
+logger = logging.getLogger(__name__)
 
 from backend.app.storage.exceptions import (
     FileNotFoundError,
@@ -37,6 +40,7 @@ class StorageService:
             raise StorageConnectionError("Could not connect to MinIO.")
         except Exception as e:
             if not isinstance(e, StorageConnectionError):
+                logger.error("Failed to initialize StorageService: %s", e)
                 raise StorageError(f"Failed to initialize StorageService: {e}")
 
     def _ensure_bucket_exists(self) -> None:
@@ -45,8 +49,10 @@ class StorageService:
             if not self._client.bucket_exists(MINIO_BUCKET_NAME):
                 self._client.make_bucket(MINIO_BUCKET_NAME)
         except S3Error as e:
+            logger.error("MinIO bucket error while ensuring bucket %s: %s", MINIO_BUCKET_NAME, e)
             raise StorageConnectionError(f"MinIO bucket error: {e}")
         except Exception as e:
+            logger.error("MinIO connection failed during bucket check: %s", e)
             raise StorageConnectionError(f"MinIO connection failed: {e}")
 
     def upload_file(
@@ -93,8 +99,10 @@ class StorageService:
             )
             return object_key
         except S3Error as e:
+            logger.error("Failed to upload file to MinIO (object_key: %s): %s", object_key, e)
             raise FileUploadError(f"Failed to upload file to MinIO: {e}")
         except Exception as e:
+            logger.error("Unexpected error during upload to MinIO (object_key: %s): %s", object_key, e)
             raise FileUploadError(f"Unexpected error during upload: {e}")
 
     def delete_file(self, object_key: str) -> None:
@@ -106,9 +114,10 @@ class StorageService:
         """
         try:
             self._client.remove_object(MINIO_BUCKET_NAME, object_key)
-        except S3Error:
-            pass  # If it fails to delete, we swallow it or log it (logging omitted here)
+        except S3Error as e:
+            logger.warning("MinIO S3Error while deleting object %s (might not exist): %s", object_key, e)
         except Exception as e:
+            logger.error("Error deleting file %s from MinIO: %s", object_key, e)
             raise StorageError(f"Error deleting file: {e}")
 
     def get_file_url(self, object_key: str, expires: int = 3600) -> str:
