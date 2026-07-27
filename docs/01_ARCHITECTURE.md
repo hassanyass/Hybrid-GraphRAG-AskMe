@@ -61,14 +61,20 @@ The Hybrid GraphRAG Enterprise Knowledge Assistant is an AI-powered system that 
 
 ## 5. Main Layers
 
-### 5.1 Presentation Layer
+### 5.1 Application Entry Layer
+
+- **Technology:** FastAPI (`app/main.py`)
+- **Responsibility:** Application bootstrap that initializes the FastAPI instance, configures CORS/logging middleware, manages lifecycle events, and registers all API routers.
+- **Phase:** 4
+
+### 5.2 Presentation Layer
 
 - **Technology:** React 18+, TypeScript, Tailwind CSS
 - **Responsibility:** User interface for document upload, search, query interaction, and result visualization.
 - **Communication:** Communicates exclusively with the Application Layer via REST API calls.
 - **Phase:** 9
 
-### 5.2 Application Layer
+### 5.3 Application Layer
 
 - **Technology:** Python 3.11+, FastAPI
 - **Responsibility:** API controllers, business logic services, authentication, authorization, and request validation.
