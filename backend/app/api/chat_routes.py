@@ -2,8 +2,10 @@
 Chat API routes.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from pydantic import BaseModel
+import os
+import shutil
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.auth.dependencies import get_current_user
@@ -23,6 +25,9 @@ from backend.app.storage.qdrant_service import QdrantService
 from backend.app.storage.neo4j_service import Neo4jService
 from backend.app.repositories.chunk_repository import ChunkRepository
 
+from backend.app.services.voice_chat_service import VoiceChatService
+from backend.app.services.audio_service import AudioService
+from backend.app.schemas.voice_schema import VoiceQueryResponse
 
 router = APIRouter(prefix="/api/v1/chat", tags=["Chat"])
 
@@ -87,3 +92,36 @@ async def process_query(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Query failed: {e}")
+
+
+def get_voice_chat_service(engine: QueryEngine = Depends(get_query_engine)) -> VoiceChatService:
+    """Dependency to build and inject the VoiceChatService."""
+    audio_service = AudioService()
+    return VoiceChatService(audio_service=audio_service, query_engine=engine)
+
+
+@router.post("/voice-query", response_model=VoiceQueryResponse)
+async def process_voice_query(
+    file: UploadFile = File(...),
+    current_user: AuthenticatedUser = Depends(get_current_user),
+    voice_service: VoiceChatService = Depends(get_voice_chat_service),
+) -> VoiceQueryResponse:
+    """
+    Process a user's voice question through STT, RAG, and TTS.
+    """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file uploaded")
+
+    temp_file_path = f"/tmp/{file.filename}"
+    try:
+        os.makedirs("/tmp", exist_ok=True)
+        with open(temp_file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        response = await voice_service.process_voice_query(temp_file_path)
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Voice query failed: {e}")
+    finally:
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)

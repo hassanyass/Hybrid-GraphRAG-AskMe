@@ -45,6 +45,7 @@ INSTRUCTIONS
 2. NEVER hallucinate or invent information outside of what is provided.
 3. If the provided information does not contain the answer, explicitly state: "The provided documents do not contain the answer."
 4. CITE your sources for every factual claim. Use the format [Filename, Page X] or [Filename, Section Y] based on the headers provided in the context.
+5. Answer in exactly the same language used by the user's question.
 
 ================================================================================
 USER QUESTION

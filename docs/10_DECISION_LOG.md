@@ -329,3 +329,22 @@ The following decisions are anticipated in upcoming phases:
 | 2026-07-27 | 0.4.0 | Added ADR-007 for MinIO object storage. | Architecture Team |
 | 2026-07-27 | 0.5.0 | Added ADR-009 for Neo4j Schema and ADR-010 for LLM Extraction. | Architecture Team |
 | 2026-07-27 | 0.6.0 | Added ADR-011, ADR-012, and ADR-013 for Hybrid Retrieval Engine. | Architecture Team |
+| 2026-07-28 | 0.7.0 | Added ADR-015 for Voice-to-Voice GraphRAG Integration. | Architecture Team |
+
+---
+
+### ADR-015: Voice-to-Voice GraphRAG
+
+- **Date:** 2026-07-28
+- **Status:** Accepted
+
+- **Context:**
+  The system requires smooth Voice-to-Voice interaction supporting transitions from Arabic to English and vice-versa, seamlessly utilizing the RAG pipeline.
+
+- **Decision:**
+  Create a unified `VoiceChatService` that orchestrates STT, existing Hybrid RAG `QueryEngine`, and TTS sequentially. Do not translate the queries via middleware; instead inject `"Answer in exactly the same language used by the user's question"` into the prompt builder to allow LLM native language responses. Return both JSON metadata and Base64-encoded audio for a robust frontend consumption format.
+
+- **Consequences:**
+  - Maintains existing RAG business logic.
+  - Decreases latency by avoiding translation overhead.
+  - Clean separation of concerns between HTTP routes and orchestration services.

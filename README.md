@@ -115,6 +115,7 @@ HybridGraphRAG/
 - [x] **Phase 6** — Knowledge Storage (Qdrant indexing, Neo4j graph construction)
 - [x] **Phase 7** — RAG Engine (Hybrid retrieval, reranking, context assembly)
 - [x] **Phase 8** — LLM Integration (Groq inference, prompt engineering, response generation)
+- [x] **Phase 8.5** — Voice-to-Voice GraphRAG Integration
 - [ ] **Phase 9** — Frontend (React UI, search interface, document viewer)
 - [ ] **Phase 10** — Deployment (Docker, CI/CD, monitoring, production hardening)
 
@@ -170,6 +171,7 @@ Comprehensive documentation is maintained in the [`docs/`](docs/) directory:
 | [AI Pipeline](docs/05_AI_PIPELINE.md) | AI processing pipeline design |
 | [RAG Design](docs/06_RAG_DESIGN.md) | Retrieval Augmented Generation architecture |
 | [Security Design](docs/07_SECURITY_DESIGN.md) | Security architecture and policies |
+| [Voice Pipeline](docs/08_VOICE_PIPELINE.md) | Voice-to-Voice RAG architecture and integration |
 | [Deployment Guide](docs/08_DEPLOYMENT_GUIDE.md) | Deployment procedures and infrastructure |
 | [Development Guidelines](docs/09_DEVELOPMENT_GUIDELINES.md) | Coding standards and conventions |
 | [Decision Log](docs/10_DECISION_LOG.md) | Architectural decision records |

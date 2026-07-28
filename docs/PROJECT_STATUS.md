@@ -17,6 +17,7 @@
 - [x] Phase 6: Vector & Graph Integration (Qdrant & Neo4j)
 - [x] Phase 7: Neo4j Knowledge Graph Integration
 - [x] Phase 8: Hybrid Retrieval & GraphRAG Query Engine
+- [x] Phase 8.5: Voice-to-Voice GraphRAG Integration
 - [ ] Phase 9: React Frontend Implementation
 - [ ] Phase 10: Dockerization & Deployment
 
