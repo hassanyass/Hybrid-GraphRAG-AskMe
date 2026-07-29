@@ -25,7 +25,10 @@ ALLOWED_ORIGINS_ENV = os.getenv("ALLOWED_ORIGINS") or "*"
 ALLOWED_ORIGINS = [origin.strip() for origin in ALLOWED_ORIGINS_ENV.split(",") if origin.strip()]
 
 # Internal modules
-from backend.app.api import document_router, user_router, chat_router, audio_router
+from backend.app.api import (
+    document_router, user_router, chat_router, 
+    audio_router, auth_router, workspace_router, conversation_router
+)
 
 
 @asynccontextmanager
@@ -34,13 +37,54 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     Application lifespan manager.
     Setup operations before accepting requests and cleanup after shutdown.
     """
-    from backend.app.storage.neo4j_service import Neo4jService
-    neo4j = Neo4jService()
+    import logging
+    logger = logging.getLogger("backend.startup")
+    
+    # 1. PostgreSQL Check
+    from backend.app.database.session import engine
+    from sqlalchemy import text
     try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        logger.info("✓ PostgreSQL connected")
+    except Exception as e:
+        logger.error(f"✗ PostgreSQL connection failed: {e}")
+        raise
+
+    # 2. Neo4j Check & Initialization
+    from backend.app.storage.neo4j_service import Neo4jService
+    try:
+        neo4j = Neo4jService()
+        neo4j._driver.verify_connectivity()
         neo4j.initialize_constraints()
+        logger.info("✓ Neo4j connected")
+    except Exception as e:
+        logger.error(f"✗ Neo4j connection failed: {e}")
+        raise
     finally:
         neo4j.close()
-    
+
+    # 3. Qdrant Check
+    from backend.app.storage.qdrant_service import QdrantService
+    try:
+        qdrant = QdrantService()
+        qdrant._client.get_collections()
+        logger.info("✓ Qdrant connected")
+    except Exception as e:
+        logger.error(f"✗ Qdrant connection failed: {e}")
+        raise
+
+    # 4. MinIO Check
+    from backend.app.storage.storage_service import StorageService
+    try:
+        minio = StorageService()
+        minio._client.list_buckets()
+        logger.info("✓ MinIO connected")
+    except Exception as e:
+        logger.error(f"✗ MinIO connection failed: {e}")
+        raise
+
+    logger.info("ASKME backend ready")
     yield
     # Shutdown: Clean up connections
 
@@ -63,8 +107,10 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Register Routers
+    app.include_router(auth_router)
     app.include_router(user_router)
+    app.include_router(workspace_router)
+    app.include_router(conversation_router)
     app.include_router(document_router)
     app.include_router(chat_router)
     app.include_router(audio_router)

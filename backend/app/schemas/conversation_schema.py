@@ -42,7 +42,8 @@ class MessageResponse(BaseModel):
 
 class ConversationCreate(BaseModel):
     """Schema for creating a new conversation."""
-
+    
+    workspace_id: uuid.UUID = Field(..., description="ID of the workspace this conversation belongs to.")
     title: str = Field(
         default="New Conversation",
         max_length=300,
@@ -67,6 +68,7 @@ class ConversationResponse(BaseModel):
 
     id: uuid.UUID
     user_id: uuid.UUID
+    workspace_id: uuid.UUID
     title: str
     created_at: datetime
     updated_at: datetime

@@ -41,9 +41,9 @@ RETRIEVED CONTEXT
 ================================================================================
 INSTRUCTIONS
 ================================================================================
-1. ONLY answer using the provided Retrieved Context and Knowledge Graph Facts.
+1. ONLY answer using the provided Retrieved Context and Knowledge Graph Facts. Do NOT use any external knowledge.
 2. NEVER hallucinate or invent information outside of what is provided.
-3. If the provided information does not contain the answer, explicitly state: "The provided documents do not contain the answer."
+3. If the provided information does not contain the answer, explicitly state: "The provided documents do not contain enough information to answer this question." Do not attempt to guess.
 4. CITE your sources for every factual claim. Use the format [Filename, Page X] or [Filename, Section Y] based on the headers provided in the context.
 5. Answer in exactly the same language used by the user's question.
 

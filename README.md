@@ -52,7 +52,7 @@ By fusing vector-based semantic retrieval with graph-based relational retrieval,
 | Technology | Purpose |
 |---|---|
 | LangChain | LLM orchestration and chain management |
-| BGE-M3 | Multilingual dense embeddings |
+| BGE-M3 (FlagEmbedding) | Multilingual dense embeddings |
 | GPT-OSS-120B via Groq | High-speed LLM inference |
 
 ### Storage & Databases
@@ -139,20 +139,51 @@ HybridGraphRAG/
 - Docker & Docker Compose
 - Git
 
-### Setup
+### Running the Project
+
+#### 1. Running the Infrastructure Only (Development Mode)
+If you are developing locally, you can run the infrastructure (databases, storage) using Docker, and run the backend and frontend natively.
 
 ```bash
 # Clone the repository
 git clone <repository-url>
 cd HybridGraphRAG
 
-# Copy environment template
+# Copy environment template and edit with your values
 cp .env.example .env
-# Edit .env with your configuration values
 
-# Start infrastructure services
+# Start infrastructure services (Qdrant, Neo4j, MinIO)
 docker-compose up -d
 ```
+
+**Run the Backend (Locally):**
+```bash
+cd backend
+# Make sure your virtual environment is active and dependencies are installed
+uvicorn app.main:app --reload
+```
+The backend API will be available at `http://localhost:8000`.
+
+**Run the Frontend (Locally):**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+The frontend UI will be available at `http://localhost:5173`.
+
+#### 2. Running Fully with Docker
+To run the entire stack (including the FastAPI backend and React frontend) through Docker:
+
+1. Open `docker-compose.yml`.
+2. Uncomment the `backend` and `frontend` service definitions at the top of the file.
+3. Run the following command to build and start all containers:
+
+```bash
+docker-compose up -d --build
+```
+- The Frontend will be available at `http://localhost:3000`
+- The Backend API will be available at `http://localhost:8000`
 
 Further setup instructions will be added as AI and Frontend phases are finalized.
 

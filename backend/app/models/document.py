@@ -52,6 +52,13 @@ class Document(Base):
         index=True,
         comment="Owner user reference.",
     )
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        comment="Parent workspace reference.",
+    )
     filename: Mapped[str] = mapped_column(
         String(500),
         nullable=False,
@@ -100,6 +107,10 @@ class Document(Base):
         "User",
         back_populates="documents",
     )
+    workspace: Mapped["Workspace"] = relationship(
+        "Workspace",
+        back_populates="documents",
+    )
     metadata_record: Mapped["DocumentMetadata"] = relationship(
         "DocumentMetadata",
         back_populates="document",
@@ -111,7 +122,6 @@ class Document(Base):
         "DocumentChunk",
         back_populates="document",
         cascade="all, delete-orphan",
-        lazy="selectin",
     )
 
     def __repr__(self) -> str:

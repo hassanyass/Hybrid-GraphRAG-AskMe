@@ -21,7 +21,7 @@ class VoiceChatService:
         self.audio_service = audio_service
         self.query_engine = query_engine
 
-    async def process_voice_query(self, audio_file_path: str) -> VoiceQueryResponse:
+    async def process_voice_query(self, audio_file_path: str, workspace_id: str | None = None) -> VoiceQueryResponse:
         """
         Process an end-to-end voice query.
         """
@@ -35,7 +35,7 @@ class VoiceChatService:
         
         # 2. RAG Query
         # We assume the prompt builder has been updated to force same-language response
-        query_response = await self.query_engine.query(transcription_result.text)
+        query_response = await self.query_engine.query(transcription_result.text, workspace_id=workspace_id)
         logger.info("RAG completed")
         
         # 3. TTS

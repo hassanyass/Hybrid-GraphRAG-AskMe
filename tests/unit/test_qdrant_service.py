@@ -21,12 +21,12 @@ def mock_qdrant_client():
 
 def test_ensure_collection_creates_when_missing(mock_qdrant_client):
     service = QdrantService()
-    service.ensure_collection(dimension=384)
+    service.ensure_collection(dimension=1024)
     
     mock_qdrant_client.create_collection.assert_called_once()
     _, kwargs = mock_qdrant_client.create_collection.call_args
     assert kwargs["collection_name"] == "document_chunks"
-    assert kwargs["vectors_config"].size == 384
+    assert kwargs["vectors_config"].size == 1024
 
 
 def test_ensure_collection_skips_when_exists(mock_qdrant_client):
@@ -34,8 +34,13 @@ def test_ensure_collection_skips_when_exists(mock_qdrant_client):
     mock_collection.name = "document_chunks"
     mock_qdrant_client.get_collections.return_value = MagicMock(collections=[mock_collection])
     
+    # Mock collection_info to return existing dimension of 1024
+    mock_collection_info = MagicMock()
+    mock_collection_info.config.params.vectors.size = 1024
+    mock_qdrant_client.get_collection.return_value = mock_collection_info
+    
     service = QdrantService()
-    service.ensure_collection(dimension=384)
+    service.ensure_collection(dimension=1024)
     
     mock_qdrant_client.create_collection.assert_not_called()
 
@@ -53,7 +58,7 @@ def test_upsert_chunks(mock_qdrant_client):
         content="Test content",
         page_number=1,
     )
-    vector = [0.1] * 384
+    vector = [0.1] * 1024
     
     service.upsert_chunks([chunk], [vector])
     

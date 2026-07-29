@@ -329,7 +329,25 @@ The following decisions are anticipated in upcoming phases:
 | 2026-07-27 | 0.4.0 | Added ADR-007 for MinIO object storage. | Architecture Team |
 | 2026-07-27 | 0.5.0 | Added ADR-009 for Neo4j Schema and ADR-010 for LLM Extraction. | Architecture Team |
 | 2026-07-27 | 0.6.0 | Added ADR-011, ADR-012, and ADR-013 for Hybrid Retrieval Engine. | Architecture Team |
-| 2026-07-28 | 0.7.0 | Added ADR-015 for Voice-to-Voice GraphRAG Integration. | Architecture Team |
+| 2026-07-28 | 0.8.0 | Added ADR-016 for FlagEmbedding integration. | Architecture Team |
+
+---
+
+### ADR-016: Official BAAI BGE-M3 FlagEmbedding
+
+- **Date:** 2026-07-28
+- **Status:** Accepted
+
+- **Context:**
+  The project initially used `sentence-transformers` for generating embeddings. However, to fully leverage the BGE-M3 model's capabilities and maintain optimal performance, using the official `FlagEmbedding` library is preferable. It provides native support for BGE-M3 features, robust encoding options, and improved performance via FP16 acceleration.
+
+- **Decision:**
+  Replace `sentence-transformers` with the official `FlagEmbedding` library (`BGEM3FlagModel`) across the AI pipeline. Force the embedding dimension to 1024 for dense vectors and ensure configuration values (batch size, max length, model name) are strictly read from environment variables to avoid hardcoding.
+
+- **Consequences:**
+  - Improved embedding performance and better adherence to BAAI's intended usage of the BGE-M3 model.
+  - Requires updating Qdrant collections to accept 1024-dimensional vectors if previously configured for 384 (all-MiniLM).
+  - Explicit dependency on `FlagEmbedding`, dropping generic `sentence-transformers` abstractions for this specific model architecture.
 
 ---
 

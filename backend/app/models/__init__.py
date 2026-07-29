@@ -6,6 +6,7 @@ discover them through a single import.
 """
 
 from backend.app.models.conversation import Conversation
+from backend.app.models.workspace import Workspace
 from backend.app.models.document import Document, DocumentMetadata, DocumentStatus
 from backend.app.models.document_chunk import (
     DocumentChunk,
@@ -19,6 +20,7 @@ from backend.app.models.user import User
 
 __all__ = [
     "Conversation",
+    "Workspace",
     "Document",
     "DocumentChunk",
     "DocumentMetadata",

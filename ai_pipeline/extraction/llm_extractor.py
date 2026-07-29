@@ -18,6 +18,8 @@ from ai_pipeline.extraction.base_extractor import (
     ExtractedRelationship,
 )
 
+# Removed API key rotation utilities
+
 logger = logging.getLogger(__name__)
 
 # Define schemas for the LLM to output
@@ -27,10 +29,24 @@ class LLMEntity(BaseModel):
     description: str | None = Field(None, description="Brief description of this entity.")
 
 class LLMRelationship(BaseModel):
-    source_entity_name: str = Field(..., description="Name of the source entity.")
-    target_entity_name: str = Field(..., description="Name of the target entity.")
-    relationship_type: str = Field(..., description="Type of relationship, e.g., WORKS_FOR, LOCATED_IN, RELATES_TO.")
+    source_entity_name: str = Field(
+        ...,
+        alias="source",
+        description="Name of the source entity.",
+    )
+    target_entity_name: str = Field(
+        ...,
+        alias="target",
+        description="Name of the target entity.",
+    )
+    relationship_type: str = Field(
+        ...,
+        alias="type",
+        description="Type of relationship, e.g., WORKS_FOR, LOCATED_IN, RELATES_TO.",
+    )
     description: str | None = Field(None, description="Description of the relationship.")
+
+    model_config = {"populate_by_name": True}
 
 class LLMExtraction(BaseModel):
     entities: list[LLMEntity]
@@ -41,17 +57,48 @@ class LlmExtractor(BaseExtractor):
     """Extractor that uses an OpenAI-compatible LLM via Instructor for structured output."""
 
     def __init__(self):
-        # Allow override for local LLMs (e.g., Ollama or vLLM)
-        api_key = os.getenv("OPENAI_API_KEY", "dummy")
-        base_url = os.getenv("OPENAI_BASE_URL", None)
-        self.model_name = os.getenv("EXTRACTION_MODEL", "gpt-4o-mini")
-        
+        from backend.app.services.llm_service import (
+            LLM_PROVIDER,
+            LLM_MODEL,
+            resolve_openai_compatible_config,
+        )
+
+        self.model_name = os.getenv("EXTRACTION_MODEL") or LLM_MODEL
+        self.provider = LLM_PROVIDER
+
         try:
-            client = OpenAI(api_key=api_key, base_url=base_url)
-            self._client = instructor.from_openai(client)
+            api_key, base_url = resolve_openai_compatible_config(LLM_PROVIDER)
+            self.base_url = base_url
+            self._api_key = api_key
+            self._base_url = base_url
+            
+            self._initialize_client()
+            
+            logger.info(
+                "Initialized LlmExtractor (provider=%s, model=%s, base_url=%s, mode=JSON)",
+                LLM_PROVIDER,
+                self.model_name,
+                base_url or "https://api.openai.com/v1",
+            )
         except Exception as e:
             logger.error("Failed to initialize LlmExtractor client: %s", e)
             raise
+
+    def _initialize_client(self):
+        """Initialize or reinitialize the OpenAI client with current credentials."""
+        # Create OpenAI client with max_retries=0 to disable built-in retries
+        self.client = OpenAI(
+            api_key=self._api_key, 
+            base_url=self._base_url,
+            max_retries=0
+        )
+        # Use JSON mode instead of TOOLS mode for broader provider compatibility.
+        # TOOLS mode relies on function-calling which Groq validates strictly and
+        # rejects when the model outputs field names that differ from the schema.
+        self._client = instructor.from_openai(
+            self.client, 
+            mode=instructor.Mode.JSON
+        )
 
     def _generate_entity_id(self, name: str, entity_type: str) -> str:
         """Generate a deterministic ID for an entity."""
@@ -70,6 +117,8 @@ class LlmExtractor(BaseExtractor):
             f"Text:\n{text}"
         )
 
+        logger.info("Starting extraction")
+
         try:
             response: LLMExtraction = self._client.chat.completions.create(
                 model=self.model_name,
@@ -80,12 +129,16 @@ class LlmExtractor(BaseExtractor):
                 ],
                 temperature=0.0,
             )
+            
+            logger.info("Extraction successful")
+            return self._process_extraction_response(response)
+            
         except Exception as e:
-            logger.error("LLM Extraction failed: %s", e)
-            # Return empty result on failure to prevent pipeline crash, or raise?
-            # For graph building, we can log and return empty.
+            logger.error(f"Extraction failed with error: {e}")
             return ExtractionResult(entities=[], relationships=[])
 
+    def _process_extraction_response(self, response: LLMExtraction) -> ExtractionResult:
+        """Process the LLM extraction response into the standard format."""
         # Post-process to deterministically ID entities and link relationships
         entity_map = {}
         extracted_entities = []

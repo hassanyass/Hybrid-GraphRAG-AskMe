@@ -23,6 +23,16 @@ class ChunkRepository(BaseRepository[DocumentChunk]):
     def __init__(self, session: AsyncSession) -> None:
         super().__init__(session)
 
+    async def get_by_id(self, entity_id: uuid.UUID) -> DocumentChunk | None:
+        from sqlalchemy.orm import selectinload
+        stmt = (
+            select(DocumentChunk)
+            .options(selectinload(DocumentChunk.document))
+            .where(DocumentChunk.id == entity_id)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def bulk_create(self, chunks: list[DocumentChunk]) -> list[DocumentChunk]:
         """
         Insert multiple chunk records in a single flush.
@@ -51,6 +61,30 @@ class ChunkRepository(BaseRepository[DocumentChunk]):
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_paginated_by_document_id(
+        self,
+        document_id: uuid.UUID,
+        offset: int,
+        limit: int,
+    ) -> list[DocumentChunk]:
+        """Retrieve a paginated list of chunks for a document."""
+        stmt = (
+            select(DocumentChunk)
+            .where(DocumentChunk.document_id == document_id)
+            .order_by(DocumentChunk.chunk_index)
+            .offset(offset)
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def count_by_document_id(self, document_id: uuid.UUID) -> int:
+        """Count the total number of chunks for a document."""
+        from sqlalchemy import func
+        stmt = select(func.count(DocumentChunk.id)).where(DocumentChunk.document_id == document_id)
+        result = await self._session.execute(stmt)
+        return result.scalar_one() or 0
 
     async def update_vector_status(
         self,

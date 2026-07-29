@@ -46,15 +46,24 @@ def decode_access_token(token: str) -> TokenPayload:
             cannot be verified.
     """
     try:
-        payload = jwt.decode(
-            token,
-            SUPABASE_JWT_SECRET,
-            algorithms=[JWT_ALGORITHM],
-            audience="authenticated",
-        )
+        if SUPABASE_JWT_SECRET:
+            payload = jwt.decode(
+                token,
+                SUPABASE_JWT_SECRET,
+                algorithms=[JWT_ALGORITHM],
+                audience="authenticated",
+            )
+        else:
+            # Bypass signature verification if secret is not set (e.g. local dev)
+            payload = jwt.decode(
+                token,
+                options={"verify_signature": False},
+                audience="authenticated",
+            )
     except jwt.ExpiredSignatureError:
         raise TokenExpiredError()
-    except (jwt.InvalidTokenError, jwt.DecodeError, Exception):
+    except (jwt.InvalidTokenError, jwt.DecodeError, Exception) as e:
+        print(f"JWT Decode Error: {e}")
         raise TokenInvalidError()
 
     # Validate expiration defensively (belt-and-suspenders with PyJWT)

@@ -38,9 +38,9 @@ class PdfParser(BaseParser):
                     # 1-indexed page numbers
                     pages.append(ParsedPage(page_number=page_num + 1, text=text.strip()))
 
+            page_count = len(doc)
             doc.close()
 
-            page_count = len(doc)
             full_text = "\n\n".join(p.text for p in pages)
 
             logger.info("Parsed PDF: %d pages, %d characters", len(pages), len(full_text))

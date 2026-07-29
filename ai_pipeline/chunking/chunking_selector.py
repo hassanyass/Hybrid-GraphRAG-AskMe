@@ -5,7 +5,7 @@ Chunking strategy selector.
 import logging
 
 from ai_pipeline.chunking.base_chunker import BaseChunker
-from ai_pipeline.chunking.pdf_chunker import PdfChunker
+from ai_pipeline.chunking.semantic_token_chunker import SemanticTokenChunker
 from ai_pipeline.chunking.docx_chunker import DocxChunker
 from ai_pipeline.chunking.txt_chunker import TxtChunker
 
@@ -24,8 +24,8 @@ class ChunkingSelector:
         file_type = file_type.lower()
 
         if file_type == "application/pdf":
-            logger.info("Selecting PdfChunker for %s", file_type)
-            return PdfChunker()
+            logger.info("Selecting SemanticTokenChunker for %s", file_type)
+            return SemanticTokenChunker()
         
         elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
             logger.info("Selecting DocxChunker for %s", file_type)

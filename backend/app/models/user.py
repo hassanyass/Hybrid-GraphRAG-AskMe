@@ -78,6 +78,12 @@ class User(Base):
     # ------------------------------------------------------------------
     # Relationships
     # ------------------------------------------------------------------
+    workspaces: Mapped[list["Workspace"]] = relationship(
+        "Workspace",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
     documents: Mapped[list["Document"]] = relationship(
         "Document",
         back_populates="user",

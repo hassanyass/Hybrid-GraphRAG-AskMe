@@ -45,8 +45,29 @@ class QdrantService:
             collections = self._client.get_collections()
             if any(c.name == self._collection_name for c in collections.collections):
                 logger.debug("Qdrant collection '%s' already exists.", self._collection_name)
-                # Note: Not verifying dimension here for simplicity, but in production we might.
-                return
+                
+                # Verify dimension
+                collection_info = self._client.get_collection(self._collection_name)
+                vector_config = collection_info.config.params.vectors
+                existing_dim = getattr(vector_config, 'size', None)
+                if isinstance(vector_config, dict):
+                    existing_dim = vector_config.get('size')
+                
+                if existing_dim and existing_dim != dimension:
+                    logger.error(
+                        "Dimension mismatch! Existing collection '%s' has dimension %s but model requires %d.", 
+                        self._collection_name, existing_dim, dimension
+                    )
+                    if os.getenv("APP_ENV", "development").lower() == "development":
+                        logger.warning("Development mode detected. Recreating collection '%s'...", self._collection_name)
+                        self._client.delete_collection(self._collection_name)
+                    else:
+                        raise ValueError(
+                            f"Qdrant dimension mismatch: Collection {self._collection_name} is {existing_dim}, "
+                            f"but model needs {dimension}."
+                        )
+                else:
+                    return
                 
             logger.info("Creating Qdrant collection '%s' with dimension %d", self._collection_name, dimension)
             self._client.create_collection(
@@ -82,6 +103,8 @@ class QdrantService:
                 "chunk_index": chunk.chunk_index,
                 "chunking_strategy": chunk.chunking_strategy,
             }
+            if chunk.document and chunk.document.workspace_id:
+                payload["workspace_id"] = str(chunk.document.workspace_id)
             if chunk.page_number is not None:
                 payload["page_number"] = chunk.page_number
             if chunk.section_title is not None:
@@ -110,7 +133,7 @@ class QdrantService:
             logger.error("Failed to upsert points to Qdrant: %s", e)
             raise
 
-    def search(self, query_embedding: list[float], top_k: int = 5) -> list["VectorSearchResult"]:
+    def search(self, query_embedding: list[float], top_k: int = 5, workspace_id: str | None = None) -> list["VectorSearchResult"]:
         """
         Search for the most similar chunks to the query vector.
         Note: The returned results will not have chunk_text or filename 
@@ -120,14 +143,26 @@ class QdrantService:
         from backend.app.models.retrieval import VectorSearchResult
         
         try:
-            hits = self._client.search(
+            query_filter = None
+            if workspace_id:
+                query_filter = rest.Filter(
+                    must=[
+                        rest.FieldCondition(
+                            key="workspace_id",
+                            match=rest.MatchValue(value=workspace_id)
+                        )
+                    ]
+                )
+
+            hits_response = self._client.query_points(
                 collection_name=self._collection_name,
-                query_vector=query_embedding,
+                query=query_embedding,
+                query_filter=query_filter,
                 limit=top_k
             )
             
             results = []
-            for hit in hits:
+            for hit in hits_response.points:
                 payload = hit.payload or {}
                 results.append(
                     VectorSearchResult(
@@ -143,5 +178,5 @@ class QdrantService:
             logger.info("Qdrant search returned %d hits.", len(results))
             return results
         except Exception as e:
-            logger.error("Failed to search Qdrant: %s", e)
+            logger.exception("Failed to search Qdrant: %s", e)
             return []

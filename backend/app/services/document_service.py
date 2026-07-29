@@ -39,6 +39,7 @@ class DocumentService:
     async def upload_document(
         self,
         user_id: uuid.UUID,
+        workspace_id: uuid.UUID,
         filename: str,
         content_type: str,
         file_size: int,
@@ -76,6 +77,7 @@ class DocumentService:
         # Create Database Record
         doc = Document(
             user_id=user_id,
+            workspace_id=workspace_id,
             filename=filename,
             file_type=content_type,
             file_size=file_size,
@@ -100,6 +102,23 @@ class DocumentService:
             logger.warning("Document access denied or not found: doc %s, user %s", document_id, user_id)
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Document not found.")
         return doc
+
+    async def get_document_chunks_paginated(
+        self, document_id: uuid.UUID, user_id: uuid.UUID, page: int, limit: int
+    ) -> tuple[int, list]:
+        """Get paginated chunks for a document ensuring ownership."""
+        # Ensure user owns the document
+        await self.get_document(document_id, user_id)
+        
+        from backend.app.repositories.chunk_repository import ChunkRepository
+        chunk_repo = ChunkRepository(self._repo._session)
+        
+        total_chunks = await chunk_repo.count_by_document_id(document_id)
+        
+        offset = (page - 1) * limit
+        chunks = await chunk_repo.get_paginated_by_document_id(document_id, offset, limit)
+        
+        return total_chunks, chunks
 
     async def delete_document(self, document_id: uuid.UUID, user_id: uuid.UUID) -> None:
         """Delete a document from PostgreSQL and MinIO."""

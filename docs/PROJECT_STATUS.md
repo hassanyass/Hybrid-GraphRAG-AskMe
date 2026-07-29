@@ -3,8 +3,13 @@
 > **Document:** PROJECT_STATUS.md
 > **Version:** 1.0.0
 > **Status:** Active
-> **Last Updated:** 2026-07-27
+> **Last Updated:** 2026-07-28
 > **Author:** Architecture Team
+
+## 1. Project Phase
+**Current Phase:** Phase 9 (Frontend React Implementation)
+**Status:** In Progress
+**Last Updated:** 2026-07-28
 
 ---
 
@@ -37,7 +42,7 @@
    - Hybrid Chunking Strategies (`PdfChunker`, `DocxChunker`, `TxtChunker`).
    - Structural metadata tracking (`page_number`, `section_title`, `section_level`).
    - Size validation bounds (`MIN_CHUNK_SIZE`, `MAX_CHUNK_SIZE`).
-   - Local dense vector generation using `sentence-transformers`.
+   - Local dense vector generation using official `FlagEmbedding` library (BGE-M3, 1024-dim).
    - Asynchronous orchestration via `PipelineService`.
 
 ## 3. Current Architecture State

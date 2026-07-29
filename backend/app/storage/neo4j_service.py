@@ -139,7 +139,7 @@ class Neo4jService:
                 desc=rel.get("description", "")
             )
 
-    def search_graph(self, query: str) -> "GraphSearchResult":
+    def search_graph(self, query: str, workspace_id: str | None = None) -> "GraphSearchResult":
         """
         Search the graph for entities matching the query text.
         Expands relationships and returns connected chunks.
@@ -156,14 +156,16 @@ class Neo4jService:
             tokens = [query.lower()]
             
         cypher_query = """
-        MATCH (e:Entity)
+        MATCH (c:Chunk)-[:MENTIONS]->(e:Entity)
         WHERE any(token IN $tokens WHERE toLower(e.name) CONTAINS token)
+        """
         
+        if workspace_id:
+            cypher_query += " AND c.workspace_id = $workspace_id\n"
+            
+        cypher_query += """
         // Find relationships and connected entities
         OPTIONAL MATCH (e)-[r:RELATES_TO]-(related:Entity)
-        
-        // Find chunks that mention these entities
-        OPTIONAL MATCH (c:Chunk)-[:MENTIONS]->(e)
         
         RETURN 
             collect(DISTINCT e) AS matched_entities,
@@ -175,7 +177,7 @@ class Neo4jService:
         
         try:
             with self._driver.session() as session:
-                result = session.run(cypher_query, tokens=tokens)
+                result = session.run(cypher_query, tokens=tokens, workspace_id=workspace_id)
                 record = result.single()
                 
                 if not record:

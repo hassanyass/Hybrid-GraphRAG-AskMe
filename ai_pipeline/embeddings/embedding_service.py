@@ -2,7 +2,7 @@
 Embedding service.
 
 Generates dense vector embeddings for text chunks using
-the sentence-transformers library. The model is configurable
+the FlagEmbedding library (BGE-M3). The model is configurable
 via environment variables.
 
 In Phase 5, embeddings are generated but NOT persisted to Qdrant.
@@ -11,16 +11,22 @@ They will be stored in Qdrant during Phase 6.
 
 import os
 import logging
+import time
 from dataclasses import dataclass
 
-from sentence_transformers import SentenceTransformer
+from FlagEmbedding import BGEM3FlagModel
 
 logger = logging.getLogger(__name__)
 
 # Configuration from environment
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL") or "all-MiniLM-L6-v2"
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL") or "BAAI/bge-m3"
 _env_dim = os.getenv("EMBEDDING_DIMENSION")
-EMBEDDING_DIMENSION = int(_env_dim) if _env_dim else 384
+EMBEDDING_DIMENSION = int(_env_dim) if _env_dim else 1024
+_env_max_len = os.getenv("EMBEDDING_MAX_LENGTH")
+EMBEDDING_MAX_LENGTH = int(_env_max_len) if _env_max_len else 8192
+_env_batch_size = os.getenv("EMBEDDING_BATCH_SIZE")
+EMBEDDING_BATCH_SIZE = int(_env_batch_size) if _env_batch_size else 16
+EMBEDDING_USE_FP16 = os.getenv("EMBEDDING_USE_FP16", "false").lower() == "true"
 
 
 @dataclass
@@ -34,30 +40,35 @@ class EmbeddingResult:
 
 class EmbeddingService:
     """
-    Generates dense vector embeddings using sentence-transformers.
+    Generates dense vector embeddings using FlagEmbedding (BGE-M3).
 
     The model is loaded lazily on first use and cached for reuse.
     """
 
-    _model: SentenceTransformer | None = None
+    _model: BGEM3FlagModel | None = None
+    _model_lock = __import__("threading").Lock()
 
     def __init__(self, model_name: str | None = None) -> None:
         self._model_name = model_name or EMBEDDING_MODEL
         self._dimension = EMBEDDING_DIMENSION
+        self._max_length = EMBEDDING_MAX_LENGTH
+        self._use_fp16 = EMBEDDING_USE_FP16
+        self._default_batch_size = EMBEDDING_BATCH_SIZE
 
-    def _load_model(self) -> SentenceTransformer:
-        """Load the embedding model (lazy initialization)."""
-        if self._model is None:
-            logger.info("Loading embedding model: %s", self._model_name)
-            self._model = SentenceTransformer(self._model_name)
-            # Update dimension from the actual model
-            self._dimension = self._model.get_sentence_embedding_dimension()
-            logger.info(
-                "Embedding model loaded: %s (dimension=%d)",
-                self._model_name,
-                self._dimension,
-            )
-        return self._model
+    def _load_model(self) -> BGEM3FlagModel:
+        """Load the embedding model (lazy initialization with thread lock)."""
+        if self.__class__._model is None:
+            with self.__class__._model_lock:
+                if self.__class__._model is None:
+                    logger.info("Embedding model initialization started")
+                    self.__class__._model = BGEM3FlagModel(
+                        self._model_name,
+                        use_fp16=self._use_fp16
+                    )
+                    # The dimension is fixed to 1024 for BGE-M3 dense vectors
+                    self._dimension = 1024
+                    logger.info("Embedding model loaded")
+        return self.__class__._model
 
     @property
     def model_name(self) -> str:
@@ -69,7 +80,7 @@ class EmbeddingService:
         """Return the embedding dimension."""
         return self._dimension
 
-    def embed(self, texts: list[str], batch_size: int = 32) -> EmbeddingResult:
+    def embed(self, texts: list[str], batch_size: int | None = None) -> EmbeddingResult:
         """
         Generate embeddings for a list of text strings.
 
@@ -88,19 +99,29 @@ class EmbeddingService:
             )
 
         model = self._load_model()
+        bs = batch_size if batch_size else self._default_batch_size
 
-        logger.info("Generating embeddings for %d texts (batch_size=%d)...", len(texts), batch_size)
-        vectors = model.encode(
+        logger.info("Embedding inference started")
+        logger.info("Batch size: %d", bs)
+        start_time = time.time()
+        
+        result = model.encode(
             texts,
-            batch_size=batch_size,
-            show_progress_bar=False,
-            normalize_embeddings=True,
+            batch_size=bs,
+            max_length=self._max_length
         )
+        
+        # model.encode returns a dict with "dense_vecs", "lexical_weights", "colbert_vecs"
+        vectors = result["dense_vecs"]
+        
+        duration = time.time() - start_time
+        logger.info("Embedding inference completed")
+        logger.info("Encoding duration: %.2fs", duration)
 
         # Convert numpy arrays to plain Python lists
         embeddings_list = [vec.tolist() for vec in vectors]
 
-        logger.info("Generated %d embeddings (dimension=%d).", len(embeddings_list), self._dimension)
+        logger.info("Generated %d vectors (dimension=%d).", len(embeddings_list), self._dimension)
         return EmbeddingResult(
             embeddings=embeddings_list,
             model_name=self._model_name,

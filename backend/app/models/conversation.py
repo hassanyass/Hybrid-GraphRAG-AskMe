@@ -32,6 +32,13 @@ class Conversation(Base):
         index=True,
         comment="Owner user reference.",
     )
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+        comment="Parent workspace reference.",
+    )
     title: Mapped[str] = mapped_column(
         String(300),
         nullable=False,
@@ -57,6 +64,10 @@ class Conversation(Base):
     # ------------------------------------------------------------------
     user: Mapped["User"] = relationship(
         "User",
+        back_populates="conversations",
+    )
+    workspace: Mapped["Workspace"] = relationship(
+        "Workspace",
         back_populates="conversations",
     )
     messages: Mapped[list["Message"]] = relationship(

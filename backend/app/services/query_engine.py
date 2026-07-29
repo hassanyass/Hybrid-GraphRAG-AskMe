@@ -35,12 +35,15 @@ class QueryEngine:
         self._llm = llm_service
         self._formatter = response_formatter
 
-    async def query(self, question: str) -> QueryResponse:
+    async def query(self, question: str, workspace_id: str | None = None) -> QueryResponse:
         """
         Execute the full hybrid retrieval and generation pipeline.
         """
+        import logging
+        logger = logging.getLogger(__name__)
+
         # 1. Retrieve raw results from Qdrant and Neo4j
-        raw_results = await self._retriever.retrieve(question)
+        raw_results = await self._retriever.retrieve(question, workspace_id=workspace_id)
         
         # 2. Merge, deduplicate, and rerank
         ranked_chunks = await self._reranker.rerank(
@@ -50,7 +53,37 @@ class QueryEngine:
         
         # 3. Build string context
         context = self._context_builder.build_context(ranked_chunks)
+        graph_facts = self._prompt_builder._format_graph_facts(raw_results.graph_result)
         
+        # Determine if we should call LLM
+        num_chunks = len(ranked_chunks)
+        has_graph = bool(graph_facts.strip())
+        context_len = len(context)
+        llm_called = num_chunks > 0 or has_graph
+        reason = "Context found" if llm_called else "No context retrieved (early exit)"
+
+        logger.info(
+            "\nQUERY: %s\n"
+            "Retrieved vector chunks: %d\n"
+            "Retrieved graph facts: %s\n"
+            "Context length: %d\n"
+            "LLM called: %s\n"
+            "Reason: %s",
+            question,
+            num_chunks,
+            "Yes" if has_graph else "No",
+            context_len,
+            llm_called,
+            reason
+        )
+
+        if not llm_called:
+            return self._formatter.format_response(
+                answer="The provided documents do not contain enough information to answer this question.",
+                retrieved_chunks=[],
+                graph_entities=[]
+            )
+
         # 4. Build prompt
         prompt = self._prompt_builder.build_prompt(
             question=question,

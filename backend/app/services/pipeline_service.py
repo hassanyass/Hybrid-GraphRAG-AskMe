@@ -25,6 +25,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ai_pipeline.chunking.chunking_selector import ChunkingSelector
 from ai_pipeline.embeddings.embedding_service import EmbeddingService
 from ai_pipeline.parsing.parser_factory import get_parser
+from backend.app.services.telemetry_service import TelemetryService
+import time
 
 from backend.app.models.document import Document, DocumentMetadata, DocumentStatus
 from backend.app.models.document_chunk import DocumentChunk, VectorStatus
@@ -87,7 +89,8 @@ class PipelineService:
 
             # 4. Parse file → raw text
             parser = get_parser(doc.file_type)
-            parse_result = parser.parse(file_bytes)
+            loop = asyncio.get_running_loop()
+            parse_result = await loop.run_in_executor(None, parser.parse, file_bytes)
             logger.info("Parsed document %s: %d characters extracted", document_id, len(parse_result.text))
 
             if not parse_result.text.strip():
@@ -95,7 +98,9 @@ class PipelineService:
 
             # 5. Chunk text using pages to preserve metadata
             chunker = ChunkingSelector.get_chunker(doc.file_type)
-            chunk_results = chunker.chunk(parse_result.pages)
+            chunk_start = time.time()
+            chunk_results = await loop.run_in_executor(None, chunker.chunk, parse_result.pages)
+            TelemetryService.log_chunk_processing(str(document_id), "Chunking", time.time() - chunk_start, "SUCCESS", {"strategy": type(chunker).__name__, "count": len(chunk_results)})
             logger.info("Document %s split into %d chunks using %s strategy", document_id, len(chunk_results), type(chunker).__name__)
 
             if not chunk_results:
@@ -112,7 +117,12 @@ class PipelineService:
                 context += f"\n{c.content}"
                 chunk_texts.append(context)
 
-            embedding_result = self._embedder.embed(chunk_texts)
+            embed_start = time.time()
+            embedding_result = await loop.run_in_executor(None, self._embedder.embed, chunk_texts)
+            embed_duration = time.time() - embed_start
+            
+            TelemetryService.log_chunk_processing(str(document_id), "Embedding", embed_duration, "SUCCESS", {"model": embedding_result.model_name})
+            
             logger.info(
                 "Generated %d embeddings (model=%s, dim=%d)",
                 len(embedding_result.embeddings),
@@ -150,16 +160,18 @@ class PipelineService:
             await self._chunk_repo.bulk_create(db_chunks)
             logger.info("Persisted %d chunks to PostgreSQL for document %s", len(db_chunks), document_id)
 
-            # 9. Sync to Qdrant
-            self._qdrant.ensure_collection(dimension=embedding_result.dimension)
-            self._qdrant.upsert_chunks(db_chunks, embedding_result.embeddings)
+            # 9. Sync to Qdrant (CPU bound/Blocking IO)
+            await loop.run_in_executor(None, self._qdrant.ensure_collection, embedding_result.dimension)
+            await loop.run_in_executor(None, self._qdrant.upsert_chunks, db_chunks, embedding_result.embeddings)
 
             # 10. Trigger knowledge-graph extraction (fire-and-forget background task)
-            asyncio.create_task(
-                self._run_graph_extraction(document_id),
-                name=f"graph-extraction-{document_id}",
-            )
-            logger.info("Scheduled graph extraction for document %s", document_id)
+            # SKIPPED: Graph extraction is now lazy and will be handled by the Graph Orchestrator 
+            # during query time, saving API tokens and preventing rate limits.
+            # asyncio.create_task(
+            #     self._run_graph_extraction(document_id),
+            #     name=f"graph-extraction-{document_id}",
+            # )
+            logger.info("Graph extraction skipped (Lazy Generation Mode) for document %s", document_id)
 
             # 11. Update document metadata
             await self._update_metadata(
@@ -170,6 +182,19 @@ class PipelineService:
 
             # 12. Mark as COMPLETED
             updated_doc = await self._doc_repo.update_status(document_id, DocumentStatus.COMPLETED)
+            
+            TelemetryService.log_document_upload(
+                document_name=doc.filename,
+                pages=parse_result.page_count or 0,
+                words=len(parse_result.text.split()),
+                chunks=len(db_chunks),
+                embedding_time=embed_duration,
+                graph_extraction_time=0.0, # Async lazy graph extraction
+                llm_calls=0,
+                prompt_tokens=0,
+                completion_tokens=0
+            )
+            
             logger.info("Pipeline completed for document %s", document_id)
             return updated_doc
 
@@ -223,6 +248,9 @@ class PipelineService:
 
         Uses its own database session so it is fully independent of the
         main pipeline transaction.
+
+        On failure, updates the document status to FAILED so the user
+        sees an actionable error instead of a silently incomplete graph.
         """
         from backend.app.database.session import async_session_factory
         from backend.app.services.graph_extraction_service import GraphExtractionService
@@ -230,8 +258,34 @@ class PipelineService:
         try:
             async with async_session_factory() as session:
                 graph_service = GraphExtractionService(session)
-                await graph_service.process_chunks(document_id)
+                summary = await graph_service.process_chunks(document_id)
                 await session.commit()
-            logger.info("Graph extraction completed for document %s", document_id)
-        except Exception as e:
-            logger.error("Graph extraction failed for document %s: %s", document_id, e)
+
+            logger.info(
+                "Graph extraction completed for document %s | "
+                "Processed: %d | Entities: %d | Relationships: %d",
+                document_id,
+                summary.get("chunks_processed", 0),
+                summary.get("total_entities", 0),
+                summary.get("total_relationships", 0),
+            )
+
+        except Exception:
+            logger.exception(
+                "Graph extraction failed for document %s. "
+                "Updating document status to FAILED.",
+                document_id,
+            )
+            # Update document status in a fresh session so it is not
+            # affected by the failed transaction above.
+            try:
+                async with async_session_factory() as err_session:
+                    from backend.app.repositories.document_repository import DocumentRepository
+                    err_repo = DocumentRepository(err_session)
+                    await err_repo.update_status(document_id, DocumentStatus.FAILED)
+                    await err_session.commit()
+            except Exception:
+                logger.exception(
+                    "Additionally failed to update document %s status to FAILED.",
+                    document_id,
+                )

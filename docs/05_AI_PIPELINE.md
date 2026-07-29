@@ -75,10 +75,11 @@ We use **Recursive Character Text Splitting** (via LangChain):
 - **Strategy**: Attempts to split on paragraphs (`\n\n`), then lines (`\n`), then sentences, ensuring natural boundaries are respected.
 
 ### 3.4 Embedding Generation
-Dense semantic embeddings are generated using the `sentence-transformers` library:
-- **Model**: Configurable via `EMBEDDING_MODEL` (e.g., `all-MiniLM-L6-v2` or `BGE-M3`).
-- **Processing**: Embeddings are generated in batches for efficiency.
-- **Lazy Loading**: The model is loaded into memory only when the first embedding request is made.
+Dense semantic embeddings are generated using the official `FlagEmbedding` library for the BAAI BGE-M3 model:
+- **Model**: Configurable via `EMBEDDING_MODEL` (default: `BAAI/bge-m3`).
+- **Processing**: Embeddings are generated in batches for efficiency using the native `.encode()` API.
+- **Lazy Loading**: The model is initialized only once (lazily) and cached in memory.
+- **Hardware Acceleration**: Automatically uses `use_fp16=True` when configured in `.env`.
 
 ### 3.5 Pipeline Orchestration
 The `PipelineService` coordinates the flow. It updates the document's state throughout the process (UPLOADED → PROCESSING → COMPLETED) and tracks chunk-level statuses for future phases:

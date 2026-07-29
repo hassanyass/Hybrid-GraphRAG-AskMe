@@ -2,7 +2,7 @@
 Chat API routes.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from pydantic import BaseModel
 import os
 import shutil
@@ -34,6 +34,8 @@ router = APIRouter(prefix="/api/v1/chat", tags=["Chat"])
 
 class QueryRequest(BaseModel):
     question: str
+    workspace_id: str
+    conversation_id: str
 
 
 def get_query_engine(db: AsyncSession = Depends(get_db_session)) -> QueryEngine:
@@ -72,10 +74,15 @@ async def process_query(
     request: QueryRequest,
     current_user: AuthenticatedUser = Depends(get_current_user),
     engine: QueryEngine = Depends(get_query_engine),
+    db: AsyncSession = Depends(get_db_session),
 ) -> dict:
     """
     Process a user's question through the hybrid retrieval engine.
     """
+    from backend.app.models.message import Message, MessageRole
+    from backend.app.repositories.conversation_repository import ConversationRepository
+    import uuid
+    
     if not request.question or not request.question.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, 
@@ -83,11 +90,30 @@ async def process_query(
         )
         
     try:
-        response = await engine.query(request.question)
-        # Convert dataclass to dict using model_dump equivalent or just manually
-        # Since it's a dataclass, FastAPI/Pydantic will auto-serialize it if we return it directly,
-        # but to match dict output strictly, we let FastAPI handle the dataclass directly.
-        return response
+        conv_repo = ConversationRepository(db)
+        conv_id = uuid.UUID(request.conversation_id)
+        workspace_id = str(request.workspace_id)
+        
+        # Save user message
+        user_msg = Message(
+            conversation_id=conv_id,
+            role=MessageRole.USER,
+            content=request.question
+        )
+        await conv_repo.add_message(user_msg)
+        
+        # We need to pass workspace_id to engine.query
+        response = await engine.query(request.question, workspace_id=workspace_id)
+        
+        assistant_msg = Message(
+            conversation_id=conv_id,
+            role=MessageRole.ASSISTANT,
+            content=response.answer
+        )
+        await conv_repo.add_message(assistant_msg)
+        
+        import dataclasses
+        return dataclasses.asdict(response)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
@@ -103,12 +129,19 @@ def get_voice_chat_service(engine: QueryEngine = Depends(get_query_engine)) -> V
 @router.post("/voice-query", response_model=VoiceQueryResponse)
 async def process_voice_query(
     file: UploadFile = File(...),
+    workspace_id: str = Form(...),
+    conversation_id: str = Form(...),
     current_user: AuthenticatedUser = Depends(get_current_user),
     voice_service: VoiceChatService = Depends(get_voice_chat_service),
+    db: AsyncSession = Depends(get_db_session),
 ) -> VoiceQueryResponse:
     """
     Process a user's voice question through STT, RAG, and TTS.
     """
+    from backend.app.models.message import Message, MessageRole
+    from backend.app.repositories.conversation_repository import ConversationRepository
+    import uuid
+
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file uploaded")
 
@@ -118,7 +151,27 @@ async def process_voice_query(
         with open(temp_file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
             
-        response = await voice_service.process_voice_query(temp_file_path)
+        conv_repo = ConversationRepository(db)
+        conv_id = uuid.UUID(conversation_id)
+            
+        response = await voice_service.process_voice_query(temp_file_path, workspace_id=workspace_id)
+        
+        # Save user message
+        user_msg = Message(
+            conversation_id=conv_id,
+            role=MessageRole.USER,
+            content=f"🎤 *Transcription:* {response.transcription}"
+        )
+        await conv_repo.add_message(user_msg)
+        
+        # Save assistant message
+        assistant_msg = Message(
+            conversation_id=conv_id,
+            role=MessageRole.ASSISTANT,
+            content=response.answer
+        )
+        await conv_repo.add_message(assistant_msg)
+
         return response
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Voice query failed: {e}")

@@ -1,7 +1,12 @@
 import os
+import logging
 from groq import Groq
 
 from dataclasses import dataclass
+
+# API key rotation removed
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class TranscriptionResult:
@@ -12,11 +17,15 @@ class TranscriptionResult:
 
 class AudioService:
     def __init__(self):
-        # The Groq client automatically uses the GROQ_API_KEY environment variable.
-        self.client = Groq()
+        api_key = os.getenv("GROQ_API_KEY")
+        if not api_key:
+            raise ValueError("GROQ_API_KEY is not set in .env")
+        self.client = Groq(api_key=api_key)
         self.stt_model = os.getenv("STT_MODEL", "whisper-large-v3")
         self.tts_model_en = os.getenv("TTS_MODEL_EN", "canopylabs/orpheus-v1-english")
         self.tts_model_ar = os.getenv("TTS_MODEL_AR", "canopylabs/orpheus-arabic-saudi")
+        
+        logger.info("Initialized AudioService")
 
     async def transcribe_audio(self, file_path: str) -> TranscriptionResult:
         """
@@ -46,8 +55,6 @@ class AudioService:
         """
         model = self.tts_model_ar if language.lower() == "ar" else self.tts_model_en
         
-        # Assuming the Groq python client supports audio.speech (like OpenAI)
-        # If not, this might need to be refactored to use a raw requests POST call.
         try:
             response = self.client.audio.speech.create(
                 model=model,
@@ -59,7 +66,7 @@ class AudioService:
         except AttributeError:
             # Fallback if the SDK lacks .speech but the API supports it
             import requests
-            api_key = os.getenv("GROQ_API_KEY")
+            api_key = self.client.api_key
             headers = {
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json"

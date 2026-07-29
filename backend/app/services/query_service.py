@@ -27,7 +27,7 @@ class QueryService:
     def __init__(self, embedding_service: EmbeddingService | None = None):
         self._embedding_service = embedding_service or EmbeddingService()
 
-    def process_query(self, query: str) -> QueryEmbeddingResult:
+    async def process_query(self, query: str) -> QueryEmbeddingResult:
         """
         Normalize and embed a user query.
         
@@ -47,8 +47,11 @@ class QueryService:
             
         logger.info("Processing query: '%s'", normalized_query)
         
+        import asyncio
+        loop = asyncio.get_running_loop()
+        
         # We process a single query, so we pass a list of length 1
-        embedding_result = self._embedding_service.embed([normalized_query])
+        embedding_result = await loop.run_in_executor(None, self._embedding_service.embed, [normalized_query])
         
         if not embedding_result.embeddings:
             raise RuntimeError("Failed to generate embedding for the query.")

@@ -7,6 +7,7 @@ and applies a weighted scoring algorithm.
 
 import os
 import logging
+import uuid
 from typing import Any
 
 from backend.app.models.retrieval import (
@@ -67,7 +68,8 @@ class RerankerService:
             # here we fetch individually for simplicity given small N.
             for cid in missing_chunks:
                 try:
-                    record = await self._chunk_repo.get(cid)
+                    chunk_uuid = uuid.UUID(cid)
+                    record = await self._chunk_repo.get_by_id(chunk_uuid)
                     if record:
                         chunk_map[cid] = HybridSearchResult(
                             chunk_id=cid,
@@ -81,8 +83,10 @@ class RerankerService:
                             chunk_index=record.chunk_index,
                             filename=record.document.filename if record.document else ""
                         )
+                except (ValueError, AttributeError) as e:
+                    logger.warning("Invalid chunk_id or missing data for graph chunk %s: %s", cid, e)
                 except Exception as e:
-                    logger.warning("Failed to fetch graph-connected chunk %s: %s", cid, e)
+                    logger.exception("Failed to fetch graph-connected chunk %s", cid)
 
         # Apply Graph Score to ALL connected chunks (both newly added and existing from vector)
         for cid in graph_result.connected_chunks:

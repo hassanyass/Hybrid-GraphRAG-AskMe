@@ -71,14 +71,14 @@ services:
   # Responsibility: Stores and indexes dense vector embeddings for semantic
   #                 similarity search across document chunks.
   # ---------------------------------------------------------------------------
-  # qdrant:
-  #   image: qdrant/qdrant:latest
-  #   container_name: hybridgraphrag-qdrant
-  #   ports:
-  #     - "${QDRANT_PORT:-6333}:6333"
-  #   volumes:
-  #     - qdrant_data:/qdrant/storage
-  #   restart: unless-stopped
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: hybridgraphrag-qdrant
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
 
   # ---------------------------------------------------------------------------
   # Neo4j — Graph Database
@@ -128,3 +128,4 @@ services:
 volumes:
   minio_data:
   neo4j_data:
+  qdrant_data:
