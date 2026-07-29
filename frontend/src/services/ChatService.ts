@@ -33,6 +33,7 @@ export interface QueryResponse {
   audio_base64?: string
   detected_language?: string
   transcription?: string
+  message_id?: string
 }
 
 export interface ChatRequestPayload {
@@ -111,5 +112,12 @@ export class ChatService {
       },
     })
     return res.data
+  }
+
+  static async generateMessageAudio(messageId: string, language: string): Promise<string> {
+    const res = await apiClient.post<{ audio_url: string }>(`/chat/messages/${messageId}/audio`, {
+      language
+    })
+    return res.data.audio_url
   }
 }

@@ -1,10 +1,11 @@
 import ReactMarkdown, { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
-import { Play, Square, Network, ThumbsUp, ThumbsDown, Copy, Check } from 'lucide-react'
+import { Play, Square, Network, ThumbsUp, ThumbsDown, Copy, Check, Volume2, Loader2 } from 'lucide-react'
 import { useRef, useState, useEffect } from 'react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { ChatService } from '@/services/ChatService'
 
 export interface MessageProps {
   role: 'user' | 'assistant'
@@ -14,6 +15,7 @@ export interface MessageProps {
   isTyping?: boolean
   sources?: any[]
   onCitationClick?: (citationText: string) => void
+  message_id?: string
 }
 
 function LoadingIndicator() {
@@ -122,7 +124,7 @@ function CitationBadge({ text, onCitationClick, sources }: { text: string, onCit
   )
 }
 
-export function ChatMessage({ role, content, audioBase64, detectedLanguage, isTyping, sources, onCitationClick }: MessageProps) {
+export function ChatMessage({ role, content, audioBase64, detectedLanguage, isTyping, sources, onCitationClick, message_id }: MessageProps) {
   const isAI = role === 'assistant'
   const isArabic = detectedLanguage === 'ar' || /[\u0600-\u06FF]/.test(content)
   
@@ -150,9 +152,69 @@ export function ChatMessage({ role, content, audioBase64, detectedLanguage, isTy
     }
   }
   
-  const [isPlaying, setIsPlaying] = useState(false)
+  const [isPlayingNew, setIsPlayingNew] = useState(false)
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false)
+  const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   
+  const handleTTS = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    console.log("[DEBUG-TTS] --- handleTTS Triggered ---");
+    console.log("[DEBUG-TTS] message_id:", message_id);
+    console.log("[DEBUG-TTS] audioUrl state:", audioUrl);
+    console.log("[DEBUG-TTS] audioRef.current:", !!audioRef.current);
+    console.log("[DEBUG-TTS] isPlayingNew:", isPlayingNew);
+    
+    try {
+      if (!message_id) {
+         console.warn("[DEBUG-TTS] Aborting: No message_id");
+         return
+      }
+      
+      // Toggle play/pause if already loaded
+      if (audioUrl && audioRef.current) {
+         console.log("[DEBUG-TTS] Toggling existing audio");
+         if (isPlayingNew) {
+            audioRef.current.pause()
+            setIsPlayingNew(false)
+         } else {
+            audioRef.current.play()
+            setIsPlayingNew(true)
+         }
+         return
+      }
+      
+      console.log("[DEBUG-TTS] Calling setIsGeneratingAudio(true)...");
+      setIsGeneratingAudio(true)
+      
+      console.log("[DEBUG-TTS] Calling ChatService.generateMessageAudio...");
+      const lang = detectedLanguage || (isArabic ? 'ar' : 'en');
+      console.log("[DEBUG-TTS] Language selected:", lang);
+      
+      const url = await ChatService.generateMessageAudio(message_id, lang)
+      console.log("[DEBUG-TTS] SUCCESS! Received URL:", url);
+      
+      setAudioUrl(url)
+      
+      console.log("[DEBUG-TTS] Creating new Audio object...");
+      const audio = new Audio(url)
+      audioRef.current = audio
+      audio.onended = () => {
+          console.log("[DEBUG-TTS] Audio ended natively");
+          setIsPlayingNew(false)
+      }
+      console.log("[DEBUG-TTS] Playing audio...");
+      audio.play()
+      setIsPlayingNew(true)
+      console.log("[DEBUG-TTS] Flow complete.");
+    } catch (err) {
+      console.error("[DEBUG-TTS] FATAL ERROR in handleTTS:", err)
+    } finally {
+      setIsGeneratingAudio(false)
+      console.log("[DEBUG-TTS] Finally block executed.");
+    }
+  }
+
   const msgRef = useRef<HTMLDivElement>(null)
   const prevTypingRef = useRef(isTyping)
 
@@ -236,6 +298,23 @@ export function ChatMessage({ role, content, audioBase64, detectedLanguage, isTy
               {/* Feedback buttons */}
               {content !== 'Unable to generate response. Please try again.' && (
                 <div className="flex items-center gap-2 mt-4 pt-4 text-neutral-400">
+                  {message_id && (
+                    <button 
+                      onClick={handleTTS}
+                      disabled={isGeneratingAudio}
+                      className="px-2 py-1.5 hover:text-accent hover:bg-accent/10 rounded transition-colors flex items-center gap-1.5 text-xs font-medium disabled:opacity-50"
+                    >
+                      {isGeneratingAudio ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : isPlayingNew ? (
+                        <Square className="w-3.5 h-3.5 fill-current" />
+                      ) : (
+                        <Volume2 className="w-3.5 h-3.5" />
+                      )} 
+                      {isPlayingNew ? 'Stop' : 'Play'}
+                    </button>
+                  )}
+                  <div className="w-px h-4 bg-border mx-1"></div>
                   <button className="p-1.5 hover:text-accent hover:bg-accent/10 rounded transition-colors"><ThumbsUp className="w-4 h-4" /></button>
                   <button className="p-1.5 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"><ThumbsDown className="w-4 h-4" /></button>
                   <div className="w-px h-4 bg-border mx-1"></div>

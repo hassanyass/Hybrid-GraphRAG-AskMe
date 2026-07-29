@@ -15,3 +15,4 @@ class VoiceQueryResponse(BaseModel):
     citations: list[dict[str, Any]]
     response_time: float
     models_used: dict[str, str]
+    message_id: str | None = None

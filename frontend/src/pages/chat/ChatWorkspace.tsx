@@ -156,7 +156,8 @@ export function ChatWorkspace() {
     if (activeConversation) {
       const mapped = activeConversation.messages.map(m => ({
         role: m.role,
-        content: m.content
+        content: m.content,
+        message_id: m.id
       }))
       setMessages(mapped.length ? mapped : [{
         role: 'assistant',
@@ -241,7 +242,8 @@ export function ChatWorkspace() {
       
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: ''
+        content: '',
+        message_id: response.message_id
       }])
 
       let i = 0
@@ -305,7 +307,8 @@ export function ChatWorkspace() {
           role: 'assistant',
           content: '',
           audioBase64: response.audio_base64,
-          detectedLanguage: response.detected_language
+          detectedLanguage: response.detected_language,
+          message_id: response.message_id
         })
         return newMsg
       })

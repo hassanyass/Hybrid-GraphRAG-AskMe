@@ -12,6 +12,7 @@ from datetime import datetime
 from sqlalchemy import DateTime, Enum, ForeignKey, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.types import String
 
 from backend.app.database.base import Base
 
@@ -56,6 +57,21 @@ class Message(Base):
         server_default=func.now(),
         nullable=False,
         comment="Timestamp of message creation.",
+    )
+    audio_storage_path: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+        comment="MinIO object key for generated TTS audio."
+    )
+    audio_language: Mapped[str | None] = mapped_column(
+        String(10),
+        nullable=True,
+        comment="Language of the currently cached audio."
+    )
+    audio_generated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Timestamp when audio was generated."
     )
 
     # ------------------------------------------------------------------

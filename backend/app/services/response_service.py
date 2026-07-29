@@ -28,6 +28,7 @@ class QueryResponse:
     retrieved_chunks: list[dict[str, Any]]
     graph_entities: list[dict[str, str]]
     confidence: float
+    message_id: str | None = None
 
 
 class ResponseFormatter:

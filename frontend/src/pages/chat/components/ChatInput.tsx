@@ -16,14 +16,9 @@ export function ChatInput({ isPending, onSubmit, onVoiceSubmit }: ChatInputProps
   const [language, setLanguage] = useState('en')
   
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const { isRecording, startRecording, stopRecording, audioBlob, clearAudio } = useAudioRecorder()
-
-  useEffect(() => {
-    if (audioBlob) {
-      onVoiceSubmit(audioBlob, retrievalMode, language)
-      clearAudio()
-    }
-  }, [audioBlob, onVoiceSubmit, clearAudio, retrievalMode, language])
+  const { isRecording, startRecording, stopRecording, audioBlob, clearAudio } = useAudioRecorder((text) => {
+    setInput(text)
+  })
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -36,8 +31,13 @@ export function ChatInput({ isPending, onSubmit, onVoiceSubmit }: ChatInputProps
   }
 
   const handleSubmitClick = () => {
-    if (input.trim() && !isPending) {
-      onSubmit(input.trim(), retrievalMode, language)
+    if ((input.trim() || audioBlob) && !isPending) {
+      if (audioBlob) {
+        onVoiceSubmit(audioBlob, retrievalMode, language)
+        clearAudio()
+      } else {
+        onSubmit(input.trim(), retrievalMode, language)
+      }
       setInput('')
     }
   }
@@ -107,9 +107,9 @@ export function ChatInput({ isPending, onSubmit, onVoiceSubmit }: ChatInputProps
                 variant="outline"
                 className={cn(
                   "rounded-lg h-10 w-10 border-border transition-all text-neutral-dark hover:text-foreground hover:bg-neutral-50 shadow-sm",
-                  input.length > 0 && "hidden md:flex"
+                  (input.length > 0 || audioBlob) && "hidden md:flex"
                 )}
-                onClick={startRecording}
+                onClick={() => startRecording(language)}
                 disabled={isPending}
                 title="Voice query"
               >
@@ -121,10 +121,10 @@ export function ChatInput({ isPending, onSubmit, onVoiceSubmit }: ChatInputProps
               size="icon"
               className={cn(
                 "rounded-lg h-10 w-10 transition-all shadow-sm",
-                input.length > 0 ? "bg-accent text-primary-foreground hover:bg-accent-hover hover:shadow-md hover:-translate-y-0.5" : "bg-neutral-100 text-neutral-400 opacity-70"
+                (input.length > 0 || audioBlob) ? "bg-accent text-primary-foreground hover:bg-accent-hover hover:shadow-md hover:-translate-y-0.5" : "bg-neutral-100 text-neutral-400 opacity-70"
               )}
               onClick={handleSubmitClick}
-              disabled={isPending || isRecording || input.trim().length === 0}
+              disabled={isPending || isRecording || (input.trim().length === 0 && !audioBlob)}
             >
               {isPending ? <Loader2 className="h-4 w-4 animate-spin text-accent" /> : <ArrowRight className="h-4 w-4" />}
             </Button>

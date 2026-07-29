@@ -117,6 +117,7 @@ async def process_query(
         )
         await conv_repo.add_message(assistant_msg)
         
+        response.message_id = str(assistant_msg.id)
         import dataclasses
         return dataclasses.asdict(response)
     except ValueError as e:
@@ -182,9 +183,72 @@ async def process_voice_query(
         )
         await conv_repo.add_message(assistant_msg)
 
+        response.message_id = str(assistant_msg.id)
         return response
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Voice query failed: {e}")
     finally:
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
+
+class AudioRequest(BaseModel):
+    language: str
+
+@router.post("/messages/{message_id}/audio")
+async def generate_message_audio(
+    message_id: str,
+    request: AudioRequest,
+    current_user: AuthenticatedUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session)
+):
+    from sqlalchemy import select
+    from backend.app.models.message import Message
+    from backend.app.storage.storage_service import StorageService
+    from backend.app.services.audio_service import AudioService
+    import uuid
+    from datetime import datetime, timezone
+    import io
+
+    try:
+        msg_uuid = uuid.UUID(message_id)
+        stmt = select(Message).where(Message.id == msg_uuid)
+        result = await db.execute(stmt)
+        message = result.scalar_one_or_none()
+        
+        if not message:
+            raise HTTPException(status_code=404, detail="Message not found")
+            
+        storage_service = StorageService()
+        
+        # Cache hit
+        if message.audio_storage_path and message.audio_language == request.language:
+            return {"audio_url": storage_service.get_file_url(message.audio_storage_path)}
+            
+        # Cache miss - generate new
+        audio_service = AudioService()
+        audio_bytes = await audio_service.synthesize_speech(message.content, request.language)
+        
+        # Upload
+        uploaded_path = storage_service.upload_file(
+            user_id=current_user.id,
+            file_stream=io.BytesIO(audio_bytes),
+            filename=f"{message_id}_{request.language}.wav",
+            content_type="audio/wav",
+            file_size=len(audio_bytes)
+        )
+        
+        # Update db
+        message.audio_storage_path = uploaded_path
+        message.audio_language = request.language
+        message.audio_generated_at = datetime.now(timezone.utc)
+        await db.commit()
+        
+        print("[TTS DEBUG] Saved audio path:", message.audio_storage_path)
+        
+        return {"audio_url": storage_service.get_file_url(message.audio_storage_path)}
+        
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Failed to generate audio for message {message_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate audio: {str(e)}")
+
