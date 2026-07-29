@@ -6,10 +6,7 @@ import { Button } from '@/components/ui/button'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString()
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
 
 interface AdvancedDocumentPaneProps {
   documentId: string | null
@@ -18,6 +15,12 @@ interface AdvancedDocumentPaneProps {
 }
 
 export function AdvancedDocumentPane({ documentId, highlightText, initialPage }: AdvancedDocumentPaneProps) {
+  console.log("[DEBUG] AdvancedDocumentPane PROPS", {
+    documentId,
+    page: initialPage,
+    highlightText
+  })
+
   const [url, setUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [numPages, setNumPages] = useState<number | null>(null)
@@ -35,12 +38,14 @@ export function AdvancedDocumentPane({ documentId, highlightText, initialPage }:
     setIsLoading(true)
     setError(null)
 
+    console.log("[DEBUG] Fetching PDF URL for", documentId)
     DocumentService.getDocumentUrl(documentId)
-      .then(fetchedUrl => {
-        if (mounted) setUrl(fetchedUrl)
+      .then(response => {
+        console.log("[DEBUG] PDF URL RECEIVED", response)
+        if (mounted) setUrl(response)
       })
-      .catch(err => {
-        console.error(err)
+      .catch(error => {
+        console.log("[DEBUG] PDF URL ERROR", error)
         if (mounted) setError('Failed to load document preview.')
       })
       .finally(() => {
@@ -117,8 +122,13 @@ export function AdvancedDocumentPane({ documentId, highlightText, initialPage }:
         {url && (
           <div className="bg-white shadow-lg border border-border">
             <Document
+              key={documentId}
               file={url}
-              onLoadSuccess={onDocumentLoadSuccess}
+              onLoadSuccess={(data) => {
+                console.log("[DEBUG] PDF LOAD SUCCESS", data)
+                onDocumentLoadSuccess(data)
+              }}
+              onLoadError={(error) => console.log("[DEBUG] PDF LOAD ERROR", error)}
               loading={<div className="p-8 text-sm text-neutral-400">Loading PDF...</div>}
             >
               <Page 

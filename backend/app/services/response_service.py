@@ -63,8 +63,12 @@ class ResponseFormatter:
             {
                 "chunk_id": c.chunk_id,
                 "document_id": c.document_id,
+                "filename": c.filename,
+                "page_number": c.page_number,
+                "section_title": c.section_title,
                 "score": round(c.score, 4),
-                "text": c.chunk_text[:200] + "..." if len(c.chunk_text) > 200 else c.chunk_text
+                "text": c.chunk_text,
+                "preview": c.chunk_text[:200] + "..." if len(c.chunk_text) > 200 else c.chunk_text
             }
             for c in retrieved_chunks
         ]

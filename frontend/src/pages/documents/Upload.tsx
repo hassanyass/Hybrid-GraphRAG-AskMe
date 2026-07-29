@@ -45,11 +45,11 @@ export function Upload() {
       
       // Navigate to chat after a brief moment so the user sees the completion state
       const timer = setTimeout(() => {
-        navigate(`/projects/${projectId}/chat`)
+        navigate(`/projects/${projectId}/chat?document=${documentId}`)
       }, 1200)
       return () => clearTimeout(timer)
     }
-  }, [stage, projectId, navigate, queryClient])
+  }, [stage, projectId, documentId, navigate, queryClient])
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0 || !projectId) return

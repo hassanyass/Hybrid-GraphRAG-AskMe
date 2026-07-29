@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { Group as PanelGroup, Panel, Separator as PanelResizeHandle, type PanelImperativeHandle } from 'react-resizable-panels'
 import { useWorkspace } from '@/hooks/useWorkspaces'
+import { useDocuments } from '@/hooks/useDocuments'
 import { useConversation } from '@/hooks/useConversations'
 import { useChatQuery, type ChatProgressState } from '@/hooks/useChat'
 import { useWorkspaceMode } from '@/contexts/WorkspaceModeContext'
@@ -24,6 +25,8 @@ type Tab = 'sources' | 'graph' | 'document'
 export function ChatWorkspace() {
   const { projectId, conversationId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
   const queryClient = useQueryClient()
   
   const { mode } = useWorkspaceMode()
@@ -47,7 +50,66 @@ export function ChatWorkspace() {
   const [activeSources, setActiveSources] = useState<any[]>([])
   const [activeEntities, setActiveEntities] = useState<any[]>([])
   const [activeTab, setActiveTab] = useState<Tab>('sources')
-  const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null)
+  
+  // Read documentId passed from URL query
+  const urlDocumentId = searchParams.get('document')
+  console.log('[DEBUG] ChatWorkspace INITIALIZED. Query documentId:', urlDocumentId)
+
+  const [activeDocumentId, setActiveDocumentId] = useState<string | null>(urlDocumentId || null)
+  
+  // Issue 2: Workspace Document Ownership (Fetch and auto-select latest if empty)
+  const { data: documents } = useDocuments()
+  
+  useEffect(() => {
+    // If we already have a document selected via URL, do nothing
+    if (searchParams.get('document')) return
+    // Wait until we have documents and a projectId
+    if (!documents || !projectId) return
+
+    // Find documents for this workspace that are completed
+    const workspaceDocs = documents.filter(
+      doc => doc.workspace_id === projectId && doc.status === 'COMPLETED'
+    )
+    
+    if (workspaceDocs.length > 0) {
+      // Sort to find the most recently updated/created document
+      const latestDoc = workspaceDocs.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )[0]
+      
+      console.log('[DEBUG] Auto-selecting latest workspace document:', latestDoc.id)
+      setActiveDocumentId(latestDoc.id)
+      
+      const newParams = new URLSearchParams(searchParams)
+      newParams.set('document', latestDoc.id)
+      setSearchParams(newParams, { replace: true })
+    }
+  }, [documents, projectId, searchParams, setSearchParams])
+
+  // Sync to URL when local state changes
+  useEffect(() => {
+    if (activeDocumentId && activeDocumentId !== searchParams.get('document')) {
+      const newParams = new URLSearchParams(searchParams)
+      newParams.set('document', activeDocumentId)
+      setSearchParams(newParams, { replace: true })
+    }
+  }, [activeDocumentId, searchParams, setSearchParams])
+
+  // Also listen for URL param changes (e.g. refresh, direct link, upload navigate)
+  useEffect(() => {
+    const currentDoc = searchParams.get('document')
+    if (currentDoc) {
+      if (currentDoc !== activeDocumentId) {
+         setActiveDocumentId(currentDoc)
+      }
+      if (!rightPanelOpen) {
+         console.log('[DEBUG] Auto-opening Document Pane for query document:', currentDoc)
+         setActiveTab('document')
+         setRightPanelOpen(true)
+      }
+    }
+  }, [searchParams, rightPanelOpen])
+
   const [highlightText, setHighlightText] = useState<string | undefined>()
   const [initialPage, setInitialPage] = useState<number | undefined>()
   
@@ -271,6 +333,28 @@ export function ChatWorkspace() {
     }
   }
   
+  const handleSourceClick = (source: any) => {
+    console.log('[DEBUG] handleSourceClick EXECUTED')
+    console.log('[DEBUG] clicked source:', source)
+    console.log('[DEBUG] document_id:', source.document_id)
+    console.log('[DEBUG] page_number:', source.page_number)
+    console.log('[DEBUG] filename:', source.filename)
+    console.log('[DEBUG] activeDocumentId BEFORE:', activeDocumentId)
+
+    if (source.document_id) {
+       setActiveDocumentId(source.document_id)
+       if (source.page_number) setInitialPage(source.page_number)
+       if (source.text) setHighlightText(source.text.substring(0, 30))
+       else if (source.content) setHighlightText(source.content.substring(0, 30))
+    }
+    setActiveTab('document')
+    setRightPanelOpen(true)
+    
+    // We can't log 'AFTER' synchronously since state updates are async,
+    // but we can log the exact values we're trying to set.
+    console.log('[DEBUG] Attempting to set activeDocumentId to:', source.document_id)
+  }
+  
   const handleCitationClick = (citationText: string) => {
     let docId = citationText.split(' ')[0]
     const matchedSource = activeSources.find(s => 
@@ -393,7 +477,7 @@ export function ChatWorkspace() {
         </div>
         
         <div className="flex-1 overflow-hidden bg-white">
-          {activeTab === 'sources' && <SourcesPane sources={activeSources} />}
+          {activeTab === 'sources' && <SourcesPane sources={activeSources} onSourceClick={handleSourceClick} />}
           {activeTab === 'document' && <AdvancedDocumentPane documentId={activeDocumentId} highlightText={highlightText} initialPage={initialPage} />}
           {activeTab === 'graph' && <GraphPane entities={activeEntities} />}
         </div>

@@ -1,11 +1,12 @@
 import type { Source } from '@/hooks/useChat'
-import { FileText, ChevronRight } from 'lucide-react'
+import { FileText, ArrowRight } from 'lucide-react'
 
 interface SourcesPaneProps {
   sources?: Source[]
+  onSourceClick?: (source: Source) => void
 }
 
-export function SourcesPane({ sources }: SourcesPaneProps) {
+export function SourcesPane({ sources, onSourceClick }: SourcesPaneProps) {
   if (!sources || sources.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center p-8 text-center text-neutral-dark">
@@ -25,33 +26,40 @@ export function SourcesPane({ sources }: SourcesPaneProps) {
       
       <div className="flex-1 space-y-4 overflow-y-auto pr-2 no-scrollbar">
         {sources.map((source, idx) => (
-          <div key={idx} className="rounded border border-border bg-white transition-colors hover:border-accent">
+          <div 
+            key={idx} 
+            className="rounded border border-border bg-white transition-all hover:border-accent hover:shadow-sm cursor-pointer group"
+            onClick={() => onSourceClick?.(source)}
+          >
             <div className="p-4 space-y-3">
               <div className="flex items-start justify-between gap-2 border-b border-border/50 pb-3">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-5 min-w-[20px] items-center justify-center rounded-sm bg-neutral-light text-[10px] font-bold text-neutral-dark">
+                  <div className="flex h-5 min-w-[20px] items-center justify-center rounded-sm bg-accent text-[10px] font-bold text-primary">
                     {idx + 1}
                   </div>
-                  <span className="text-xs font-semibold uppercase tracking-wider text-neutral-dark truncate max-w-[150px]" title={source.document_id || 'Unknown'}>
-                    Doc: {source.document_id?.split('-')[0] || "Unknown"}
+                  <span className="text-sm font-semibold text-foreground truncate max-w-[200px]" title={source.filename || 'Unknown Document'}>
+                    📄 {source.filename || "Unknown Document"}
                   </span>
-                </div>
-                <div className="rounded-sm bg-accent/10 px-1.5 py-0.5 text-[10px] font-bold text-accent">
-                  {((source.score || 0) * 100).toFixed(1)}% Match
                 </div>
               </div>
               
-              <p className="text-sm text-foreground leading-relaxed line-clamp-4">
-                "{source.content || source.text || ""}"
-              </p>
-              
-              {source.page_number && (
-                <div className="flex justify-end pt-2">
-                  <span className="text-xs font-medium text-neutral-dark flex items-center gap-1">
-                    Page {source.page_number} <ChevronRight className="h-3 w-3" />
-                  </span>
+              {(source.page_number || source.section_title) && (
+                <div className="flex flex-wrap gap-2 text-xs font-medium text-neutral-dark">
+                  {source.page_number && <span>Page {source.page_number}</span>}
+                  {source.page_number && source.section_title && <span>•</span>}
+                  {source.section_title && <span>{source.section_title}</span>}
                 </div>
               )}
+
+              <p className="text-sm text-neutral-dark leading-relaxed line-clamp-3">
+                "{source.preview || source.content || source.text || ""}"
+              </p>
+              
+              <div className="flex justify-between items-center pt-2 border-t border-border/50 mt-2">
+                <span className="text-xs font-semibold text-accent flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  Open Source <ArrowRight className="h-3 w-3" />
+                </span>
+              </div>
             </div>
           </div>
         ))}

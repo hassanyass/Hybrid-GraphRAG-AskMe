@@ -1,11 +1,14 @@
 import { apiClient } from '@/api/client'
 
 export interface Source {
+  chunk_id?: string
   document_id?: string
-  score: number
-  content?: string
-  text?: string
+  filename?: string
   page_number?: number
+  section_title?: string
+  score?: number
+  text?: string
+  preview?: string
 }
 
 export interface Message {
