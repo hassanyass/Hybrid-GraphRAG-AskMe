@@ -41,6 +41,7 @@ export interface ChatRequestPayload {
   query?: string
   audioBlob?: Blob
   retrievalMode?: 'hybrid' | 'vector' | 'graph'
+  responseLanguage?: string
 }
 
 export type ChatProgressState = 
@@ -91,7 +92,8 @@ export class ChatService {
     const res = await apiClient.post<QueryResponse>('/chat/query', {
       question: payload.query,
       workspace_id: payload.workspace_id,
-      conversation_id: payload.conversation_id
+      conversation_id: payload.conversation_id,
+      response_language: payload.responseLanguage || 'en'
     })
     return res.data
   }
@@ -101,6 +103,7 @@ export class ChatService {
     formData.append('audio', payload.audioBlob!, 'recording.webm')
     formData.append('workspace_id', payload.workspace_id)
     formData.append('conversation_id', payload.conversation_id)
+    formData.append('response_language', payload.responseLanguage || 'en')
     
     const res = await apiClient.post<QueryResponse>('/chat/voice', formData, {
       headers: {

@@ -15,7 +15,8 @@ class PromptBuilder:
         self, 
         question: str, 
         document_context: str, 
-        graph_result: GraphSearchResult
+        graph_result: GraphSearchResult,
+        response_language: str = "en"
     ) -> str:
         """
         Assemble the final prompt block for the LLM.
@@ -45,7 +46,7 @@ INSTRUCTIONS
 2. NEVER hallucinate or invent information outside of what is provided.
 3. If the provided information does not contain the answer, explicitly state: "The provided documents do not contain enough information to answer this question." Do not attempt to guess.
 4. CITE your sources for every factual claim. Use the format [Filename, Page X] or [Filename, Section Y] based on the headers provided in the context.
-5. Answer in exactly the same language used by the user's question.
+5. { "Answer only in Arabic. Preserve technical terms in English when needed." if response_language == "ar" else "Answer only in English." }
 
 ================================================================================
 USER QUESTION

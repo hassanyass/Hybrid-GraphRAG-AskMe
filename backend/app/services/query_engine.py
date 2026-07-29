@@ -35,7 +35,7 @@ class QueryEngine:
         self._llm = llm_service
         self._formatter = response_formatter
 
-    async def query(self, question: str, workspace_id: str | None = None) -> QueryResponse:
+    async def query(self, question: str, workspace_id: str | None = None, response_language: str = "en") -> QueryResponse:
         """
         Execute the full hybrid retrieval and generation pipeline.
         """
@@ -88,7 +88,8 @@ class QueryEngine:
         prompt = self._prompt_builder.build_prompt(
             question=question,
             document_context=context,
-            graph_result=raw_results.graph_result
+            graph_result=raw_results.graph_result,
+            response_language=response_language
         )
         
         # 5. Generate Answer via LLM

@@ -209,7 +209,7 @@ export function ChatWorkspace() {
     return newId
   }
 
-  const handleSubmit = async (text: string, retrievalMode: string) => {
+  const handleSubmit = async (text: string, retrievalMode: string, language: string) => {
     if (!projectId) return
 
     setMessages(prev => [...prev, { role: 'user', content: text }])
@@ -223,6 +223,7 @@ export function ChatWorkspace() {
         conversation_id: convId,
         query: text,
         retrievalMode: retrievalMode as any,
+        responseLanguage: language,
         onProgress: (state) => {
           setChatState(state)
         }
@@ -269,7 +270,7 @@ export function ChatWorkspace() {
     }
   }
 
-  const handleVoiceSubmit = async (blob: Blob, retrievalMode: string) => {
+  const handleVoiceSubmit = async (blob: Blob, retrievalMode: string, language: string) => {
     if (!projectId) return
     
     setMessages(prev => [...prev, { role: 'user', content: '🎤 *Sent a voice message*' }])
@@ -283,6 +284,7 @@ export function ChatWorkspace() {
         conversation_id: convId,
         audioBlob: blob,
         retrievalMode: retrievalMode as any,
+        responseLanguage: language,
         onProgress: (state) => {
           setChatState(state)
         }

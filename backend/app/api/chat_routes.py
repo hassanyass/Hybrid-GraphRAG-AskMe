@@ -36,6 +36,7 @@ class QueryRequest(BaseModel):
     question: str
     workspace_id: str
     conversation_id: str
+    response_language: str = "en"
 
 
 def get_query_engine(db: AsyncSession = Depends(get_db_session)) -> QueryEngine:
@@ -102,8 +103,12 @@ async def process_query(
         )
         await conv_repo.add_message(user_msg)
         
-        # We need to pass workspace_id to engine.query
-        response = await engine.query(request.question, workspace_id=workspace_id)
+        # We need to pass workspace_id and response_language to engine.query
+        response = await engine.query(
+            request.question, 
+            workspace_id=workspace_id, 
+            response_language=request.response_language
+        )
         
         assistant_msg = Message(
             conversation_id=conv_id,
@@ -131,6 +136,7 @@ async def process_voice_query(
     file: UploadFile = File(...),
     workspace_id: str = Form(...),
     conversation_id: str = Form(...),
+    response_language: str = Form("en"),
     current_user: AuthenticatedUser = Depends(get_current_user),
     voice_service: VoiceChatService = Depends(get_voice_chat_service),
     db: AsyncSession = Depends(get_db_session),
@@ -154,7 +160,11 @@ async def process_voice_query(
         conv_repo = ConversationRepository(db)
         conv_id = uuid.UUID(conversation_id)
             
-        response = await voice_service.process_voice_query(temp_file_path, workspace_id=workspace_id)
+        response = await voice_service.process_voice_query(
+            temp_file_path, 
+            workspace_id=workspace_id, 
+            response_language=response_language
+        )
         
         # Save user message
         user_msg = Message(
