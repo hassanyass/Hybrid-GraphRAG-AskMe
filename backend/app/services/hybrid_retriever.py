@@ -46,35 +46,30 @@ class HybridRetriever:
         Run hybrid retrieval for a given user query.
         
         1. Process and embed the query.
-        2. Run Qdrant vector search and Neo4j graph search in parallel.
+        2. Run Qdrant vector search.
         3. Enrich Qdrant results with full chunk text from PostgreSQL.
+        4. Trigger lazy graph extraction for any chunks that haven't been extracted yet.
+        5. Run Neo4j graph search.
         """
         logger.info("Starting hybrid retrieval for query: '%s'", query)
         
         # 1. Process query
         query_result = await self._query_service.process_query(query)
         
-        # 2. Parallel execution
+        # 2. Vector search
         loop = asyncio.get_running_loop()
-        vector_task = loop.run_in_executor(
+        vector_results = await loop.run_in_executor(
             None, 
             self._qdrant.search, 
             query_result.embedding_vector, 
             top_k,
             workspace_id
         )
-        graph_task = loop.run_in_executor(
-            None,
-            self._neo4j.search_graph,
-            query_result.normalized_query,
-            workspace_id
-        )
-        
-        vector_results, graph_result = await asyncio.gather(vector_task, graph_task)
         
         # 3. Enrich vector results with database content
-        # We need chunk_text and filename which are missing from Qdrant
         enriched_vectors = []
+        pending_chunks = []
+        
         for v_res in vector_results:
             try:
                 # chunk_id is a string; get_by_id expects uuid.UUID
@@ -84,14 +79,31 @@ class HybridRetriever:
                     v_res.chunk_text = chunk_record.content
                     v_res.filename = chunk_record.document.filename if chunk_record.document else ""
                     enriched_vectors.append(v_res)
+                    
+                    # Track chunks that need graph extraction
+                    from backend.app.models.document_chunk import GraphExtractionStatus
+                    if chunk_record.entity_extraction_status != GraphExtractionStatus.COMPLETED:
+                        pending_chunks.append(chunk_record)
+                        
             except (ValueError, AttributeError) as e:
                 logger.warning("Invalid chunk_id or missing data for chunk %s: %s", v_res.chunk_id, e)
             except Exception as e:
                 logger.exception("Failed to enrich chunk %s", v_res.chunk_id)
                 
-        # Also enrich graph connected chunks if they are not in vector results
-        # To avoid N+1 queries we could do a batch fetch, but for now simple loop is fine
-        # We don't enrich them here, Reranker will merge them.
+        # 4. Lazy Graph Extraction
+        if pending_chunks:
+            logger.info("Triggering lazy graph extraction for %d chunks...", len(pending_chunks))
+            from backend.app.services.graph_extraction_service import GraphExtractionService
+            graph_extractor = GraphExtractionService(self._chunk_repo._session)
+            await graph_extractor.process_specific_chunks(pending_chunks)
+            
+        # 5. Graph search
+        graph_result = await loop.run_in_executor(
+            None,
+            self._neo4j.search_graph,
+            query_result.normalized_query,
+            workspace_id
+        )
                 
         return HybridRetrievalOutput(
             vector_results=enriched_vectors,

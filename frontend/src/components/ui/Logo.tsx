@@ -17,8 +17,8 @@ export function Logo({ className = '', collapsed = false }: LogoProps) {
         <Network className="h-5 w-5 text-accent" />
       </div>
       {!collapsed && (
-        <span className="text-xl font-bold tracking-tight text-foreground">
-          ASKME
+        <span className="text-xl font-bold tracking-tight">
+          AskMe
         </span>
       )}
     </div>

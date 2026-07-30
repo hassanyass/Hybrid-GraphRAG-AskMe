@@ -99,5 +99,6 @@ class QueryEngine:
         return self._formatter.format_response(
             answer=answer,
             retrieved_chunks=ranked_chunks,
-            graph_entities=raw_results.graph_result.entities
+            graph_entities=raw_results.graph_result.entities,
+            graph_relationships=raw_results.graph_result.relationships
         )

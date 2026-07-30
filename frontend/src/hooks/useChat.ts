@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { ChatService, ChatRequestPayload, ChatProgressState, QueryResponse } from '@/services/ChatService'
-export type { Source, Entity, ChatProgressState, QueryResponse } from '@/services/ChatService'
+export type { Source, Entity, Relationship, ChatProgressState, QueryResponse } from '@/services/ChatService'
 
 interface ChatMutationVariables extends ChatRequestPayload {
   onProgress: (state: ChatProgressState) => void

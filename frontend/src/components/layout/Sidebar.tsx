@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { Settings, Database, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/store/uiStore'
+import { useWorkspaces } from '@/hooks/useWorkspaces'
 import { UserProfileMenu } from './UserProfileMenu'
 import { Logo } from '../ui/Logo'
 
@@ -9,6 +10,7 @@ import { Logo } from '../ui/Logo'
 export function Sidebar() {
   const location = useLocation()
   const { isSidebarOpen } = useUIStore()
+  const { data: workspaces } = useWorkspaces()
 
   return (
     <aside
@@ -55,25 +57,26 @@ export function Sidebar() {
           </Link>
         </nav>
 
-        {/* Recent Spaces Placeholder */}
-        {isSidebarOpen && (
+        {/* Recent Spaces */}
+        {isSidebarOpen && workspaces && workspaces.length > 0 && (
           <div className="px-4 mb-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold tracking-wider text-neutral-light/50 uppercase">
                 Recent Spaces
               </span>
-              <button className="text-neutral-light/50 hover:text-white transition-colors">
+              <Link to="/projects" className="text-neutral-light/50 hover:text-white transition-colors">
                 <Plus className="h-4 w-4" />
-              </button>
+              </Link>
             </div>
             <div className="space-y-1">
-              {['Machine Learning Notes', 'Research Papers'].map((space) => (
-                <button
-                  key={space}
-                  className="w-full text-left truncate rounded-lg px-3 py-1.5 text-xs text-neutral-light/70 hover:bg-white/5 hover:text-white transition-colors"
+              {workspaces.slice(0, 2).map((workspace) => (
+                <Link
+                  key={workspace.id}
+                  to={`/projects/${workspace.id}/chat`}
+                  className="block w-full text-left truncate rounded-lg px-3 py-1.5 text-xs text-neutral-light/70 hover:bg-white/5 hover:text-white transition-colors"
                 >
-                  {space}
-                </button>
+                  {workspace.name}
+                </Link>
               ))}
             </div>
           </div>

@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Network, ArrowRight, Loader2, BookOpen } from 'lucide-react'
-import { useWorkspaces, useCreateWorkspace } from '@/hooks/useWorkspaces'
+import { Plus, Network, ArrowRight, Loader2, BookOpen, Trash2 } from 'lucide-react'
+import { useWorkspaces, useCreateWorkspace, useDeleteWorkspace } from '@/hooks/useWorkspaces'
 
 export function Dashboard() {
   const navigate = useNavigate()
   const { data: workspaces, isLoading, error } = useWorkspaces()
   const createMutation = useCreateWorkspace()
+  const deleteMutation = useDeleteWorkspace()
   
   const [isCreating, setIsCreating] = useState(false)
   const [newSpaceName, setNewSpaceName] = useState('')
@@ -23,6 +24,17 @@ export function Dashboard() {
       navigate(`/projects/${workspace.id}/upload`)
     } catch (err) {
       console.error("Failed to create workspace:", err)
+    }
+  }
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    if (window.confirm("Are you sure you want to delete this space? All associated documents and chats will be removed.")) {
+      try {
+        await deleteMutation.mutateAsync(id)
+      } catch (err) {
+        console.error("Failed to delete workspace:", err)
+      }
     }
   }
 
@@ -103,23 +115,32 @@ export function Dashboard() {
 
         {/* Workspace Cards */}
         {workspaces?.map((workspace) => (
-          <button 
-            key={workspace.id}
-            onClick={() => navigate(`/projects/${workspace.id}/chat`)}
-            className="group relative flex flex-col items-start rounded border border-border bg-white p-6 text-left transition-all hover:border-accent hover:shadow-sm"
-          >
-            <div className="mb-4 flex h-10 w-10 items-center justify-center rounded bg-secondary/10 text-secondary transition-colors group-hover:bg-secondary group-hover:text-white">
-              <Network className="h-5 w-5" />
-            </div>
-            <h3 className="text-lg font-bold text-foreground mb-1 line-clamp-1">{workspace.name}</h3>
-            <p className="text-xs font-medium text-neutral-dark mb-6">
-              Created {new Date(workspace.created_at).toLocaleDateString()}
-            </p>
-            <div className="mt-auto flex w-full items-center justify-between text-sm font-bold text-accent">
-              Enter Space
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </div>
-          </button>
+          <div key={workspace.id} className="group relative">
+            <button 
+              onClick={() => navigate(`/projects/${workspace.id}/chat`)}
+              className="flex w-full h-full flex-col items-start rounded border border-border bg-white p-6 text-left transition-all hover:border-accent hover:shadow-sm"
+            >
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded bg-secondary/10 text-secondary transition-colors group-hover:bg-secondary group-hover:text-white">
+                <Network className="h-5 w-5" />
+              </div>
+              <h3 className="text-lg font-bold text-foreground mb-1 line-clamp-1 pr-8">{workspace.name}</h3>
+              <p className="text-xs font-medium text-neutral-dark mb-6">
+                Created {new Date(workspace.created_at).toLocaleDateString()}
+              </p>
+              <div className="mt-auto flex w-full items-center justify-between text-sm font-bold text-accent">
+                Enter Space
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </div>
+            </button>
+            <button
+              onClick={(e) => handleDelete(e, workspace.id)}
+              disabled={deleteMutation.isPending}
+              className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
+              title="Delete Space"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
         ))}
         
         {!isLoading && workspaces?.length === 0 && !isCreating && (

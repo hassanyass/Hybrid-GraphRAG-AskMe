@@ -21,14 +21,23 @@ export interface Message {
 
 export interface Entity {
   id: string
-  label: string
-  properties: Record<string, any>
+  name?: string
+  type?: string
+  label?: string
+  properties?: Record<string, any>
+}
+
+export interface Relationship {
+  source: string
+  target: string
+  type: string
 }
 
 export interface QueryResponse {
   answer: string
   retrieved_chunks?: Source[]
   graph_entities?: Entity[]
+  graph_relationships?: Relationship[]
   confidence?: number
   audio_base64?: string
   detected_language?: string

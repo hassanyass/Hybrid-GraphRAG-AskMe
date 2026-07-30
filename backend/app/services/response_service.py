@@ -8,7 +8,7 @@ and overall confidence into the final structured output.
 from dataclasses import dataclass
 from typing import Any
 
-from backend.app.models.retrieval import HybridSearchResult, GraphEntity
+from backend.app.models.retrieval import HybridSearchResult, GraphEntity, GraphRelationship
 
 
 @dataclass
@@ -27,6 +27,7 @@ class QueryResponse:
     sources: list[Citation]
     retrieved_chunks: list[dict[str, Any]]
     graph_entities: list[dict[str, str]]
+    graph_relationships: list[dict[str, str]]
     confidence: float
     message_id: str | None = None
 
@@ -38,7 +39,8 @@ class ResponseFormatter:
         self,
         answer: str,
         retrieved_chunks: list[HybridSearchResult],
-        graph_entities: list[GraphEntity]
+        graph_entities: list[GraphEntity],
+        graph_relationships: list[GraphRelationship]
     ) -> QueryResponse:
         """
         Package all components into a QueryResponse.
@@ -84,6 +86,16 @@ class ResponseFormatter:
             for e in graph_entities
         ]
         
+        # Format graph relationships
+        relationships_payload = [
+            {
+                "source": r.source_id,
+                "target": r.target_id,
+                "type": r.type
+            }
+            for r in graph_relationships
+        ]
+        
         # Calculate overall confidence based on the top retrieved chunk
         # If no chunks were retrieved, confidence is 0.0
         confidence = retrieved_chunks[0].score if retrieved_chunks else 0.0
@@ -93,5 +105,6 @@ class ResponseFormatter:
             sources=sources,
             retrieved_chunks=chunks_payload,
             graph_entities=entities_payload,
+            graph_relationships=relationships_payload,
             confidence=round(confidence, 4)
         )

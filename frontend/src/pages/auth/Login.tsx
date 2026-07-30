@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Logo } from '@/components/ui/Logo'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1'
 
@@ -74,60 +75,89 @@ export function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md border-0 shadow-floating">
-        <CardHeader className="space-y-2 text-center pb-8">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground font-bold text-xl">
-            A
-          </div>
-          <CardTitle className="text-2xl font-bold tracking-tight">Welcome back</CardTitle>
-          <CardDescription>
-            Enter your email to sign in to your workspace
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            {error && (
-              <div className="rounded-xl bg-red-50 p-3 text-sm text-red-500">
-                {error}
-              </div>
-            )}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@example.com"
-                  {...register('email')}
-                />
-                {errors.email && <p className="text-sm text-red-500">{errors.email.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                </div>
-                <Input
-                  id="password"
-                  type="password"
-                  {...register('password')}
-                />
-                {errors.password && <p className="text-sm text-red-500">{errors.password.message}</p>}
-              </div>
+    <div className="flex min-h-screen">
+      {/* Left side branding / image */}
+      <div className="hidden lg:flex lg:w-1/2 relative bg-neutral-900 overflow-hidden group">
+        <img 
+          src="/auth-bg.png" 
+          alt="AI Knowledge Graph Background" 
+          className="absolute inset-0 w-full h-full object-cover opacity-90 transition-transform duration-[20s] ease-in-out group-hover:scale-110"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex flex-col justify-end p-12">
+          
+          <div className="relative z-10 backdrop-blur-xl bg-black/70 p-8 rounded-3xl border border-white/10 shadow-2xl transform transition-all duration-700 translate-y-0 opacity-100">
+            <div className="flex items-center gap-3 mb-8">
+              <Logo collapsed={false} className="text-white drop-shadow-lg" />
             </div>
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? 'Signing in...' : 'Sign In'}
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center text-sm text-neutral-dark">
-            Don't have an account?{' '}
-            <Link to="/register" className="font-medium text-accent-hover hover:text-accent">
-              Create workspace
-            </Link>
+            
+            <h2 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-white via-white to-white/50 mb-6 leading-tight tracking-tight drop-shadow-sm">
+              Intelligent Document Analysis
+            </h2>
+            
+            <p className="text-lg text-neutral-200 max-w-lg leading-relaxed font-medium">
+              Interact with your documents, discover hidden insights, and construct powerful knowledge graphs effortlessly.
+            </p>
           </div>
-        </CardContent>
-      </Card>
+          
+        </div>
+      </div>
+
+      {/* Right side form */}
+      <div className="flex w-full lg:w-1/2 items-center justify-center bg-background px-4 py-12">
+        <Card className="w-full max-w-md border-0 shadow-none">
+          <CardHeader className="space-y-2 text-center pb-8">
+            <div className="flex justify-center mb-4 lg:hidden">
+              <Logo collapsed={false} />
+            </div>
+            <CardTitle className="text-2xl font-bold tracking-tight">Welcome back</CardTitle>
+            <CardDescription>
+              Enter your email to sign in to your project
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              {error && (
+                <div className="rounded-xl bg-red-50 p-3 text-sm text-red-500">
+                  {error}
+                </div>
+              )}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="name@example.com"
+                    {...register('email')}
+                  />
+                  {errors.email && <p className="text-sm text-red-500">{errors.email.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Password</Label>
+                  </div>
+                  <Input
+                    id="password"
+                    type="password"
+                    {...register('password')}
+                  />
+                  {errors.password && <p className="text-sm text-red-500">{errors.password.message}</p>}
+                </div>
+              </div>
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? 'Signing in...' : 'Sign In'}
+              </Button>
+            </form>
+
+            <div className="mt-6 text-center text-sm text-neutral-dark">
+              Don't have an account?{' '}
+              <Link to="/register" className="font-medium text-accent-hover hover:text-accent">
+                Create Project
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

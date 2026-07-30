@@ -25,6 +25,76 @@ class GraphExtractionService:
         self._extractor = LlmExtractor()
         self._neo4j = Neo4jService()
 
+    async def process_specific_chunks(self, chunks: list) -> None:
+        """
+        Extract entities and sync to Neo4j for specific chunks dynamically.
+        Used for Lazy Extraction during query time.
+        """
+        if not chunks:
+            return
+
+        now = datetime.now(timezone.utc)
+        extraction_version = self._extractor.model_name
+
+        logger.info(
+            "LAZY GRAPH EXTRACTION START | Processing %d chunks on-the-fly", len(chunks)
+        )
+
+        for i, chunk in enumerate(chunks, 1):
+            if chunk.graph_sync_status == GraphSyncStatus.COMPLETED:
+                continue
+
+            try:
+                # 1. Update status to EXTRACTING
+                chunk.entity_extraction_status = GraphExtractionStatus.EXTRACTING
+                await self._session.commit()
+
+                # 2. Extract Entities and Relationships via LLM
+                logger.info("Lazy LLM extraction | Chunk %d/%d (%s)", i, len(chunks), chunk.id)
+                result = self._extractor.extract(chunk.content)
+
+                # 3. Sync to Neo4j
+                entities_dicts = [e.model_dump() for e in result.entities]
+                relationships_dicts = [r.model_dump() for r in result.relationships]
+
+                # If document is loaded via relationship, get its data. Otherwise default.
+                doc = getattr(chunk, 'document', None)
+                doc_meta = {
+                    "filename": doc.filename if doc else "",
+                    "file_type": doc.file_type if doc else "",
+                    "workspace_id": str(doc.workspace_id) if (doc and doc.workspace_id) else ""
+                }
+                chunk_meta = {
+                    "chunk_index": chunk.chunk_index,
+                    "page_number": chunk.page_number,
+                    "workspace_id": str(doc.workspace_id) if (doc and doc.workspace_id) else ""
+                }
+
+                self._neo4j.sync_document_chunk(
+                    document_id=str(chunk.document_id),
+                    chunk_id=str(chunk.id),
+                    entities=entities_dicts,
+                    relationships=relationships_dicts,
+                    document_metadata=doc_meta,
+                    chunk_metadata=chunk_meta
+                )
+
+                # 4. Mark sync complete
+                chunk.entity_extraction_status = GraphExtractionStatus.COMPLETED
+                chunk.graph_sync_status = GraphSyncStatus.COMPLETED
+                chunk.extraction_version = extraction_version
+                chunk.graph_updated_at = now
+                await self._session.commit()
+                
+            except Exception:
+                logger.exception("Failed lazy graph extraction for chunk %s", chunk.id)
+                chunk.entity_extraction_status = GraphExtractionStatus.FAILED
+                chunk.graph_sync_status = GraphSyncStatus.FAILED
+                await self._session.commit()
+
+        # Clean up driver connection
+        self._neo4j.close()
+
     async def process_chunks(self, document_id: uuid.UUID) -> dict:
         """
         Process all chunks for a document: extract entities and sync to Neo4j.

@@ -86,11 +86,11 @@ class LlmExtractor(BaseExtractor):
 
     def _initialize_client(self):
         """Initialize or reinitialize the OpenAI client with current credentials."""
-        # Create OpenAI client with max_retries=0 to disable built-in retries
+        # Create OpenAI client with max_retries=4 to handle basic rate limits automatically
         self.client = OpenAI(
             api_key=self._api_key, 
             base_url=self._base_url,
-            max_retries=0
+            max_retries=4
         )
         # Use JSON mode instead of TOOLS mode for broader provider compatibility.
         # TOOLS mode relies on function-calling which Groq validates strictly and
@@ -119,23 +119,35 @@ class LlmExtractor(BaseExtractor):
 
         logger.info("Starting extraction")
 
-        try:
-            response: LLMExtraction = self._client.chat.completions.create(
-                model=self.model_name,
-                response_model=LLMExtraction,
-                messages=[
-                    {"role": "system", "content": "You are a precise knowledge graph extraction system."},
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.0,
-            )
-            
-            logger.info("Extraction successful")
-            return self._process_extraction_response(response)
-            
-        except Exception as e:
-            logger.error(f"Extraction failed with error: {e}")
-            return ExtractionResult(entities=[], relationships=[])
+        import time
+        max_attempts = 4
+        for attempt in range(max_attempts):
+            try:
+                response: LLMExtraction = self._client.chat.completions.create(
+                    model=self.model_name,
+                    response_model=LLMExtraction,
+                    messages=[
+                        {"role": "system", "content": "You are a precise knowledge graph extraction system."},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.0,
+                )
+                
+                logger.info("Extraction successful on attempt %d", attempt + 1)
+                return self._process_extraction_response(response)
+                
+            except Exception as e:
+                error_msg = str(e).lower()
+                if "429" in error_msg or "rate limit" in error_msg:
+                    if attempt < max_attempts - 1:
+                        wait_time = (attempt + 1) * 5
+                        logger.warning("Rate limit hit during extraction (attempt %d). Waiting %d seconds...", attempt + 1, wait_time)
+                        time.sleep(wait_time)
+                        continue
+                logger.error("Extraction failed with error: %s", e)
+                return ExtractionResult(entities=[], relationships=[])
+                
+        return ExtractionResult(entities=[], relationships=[])
 
     def _process_extraction_response(self, response: LLMExtraction) -> ExtractionResult:
         """Process the LLM extraction response into the standard format."""

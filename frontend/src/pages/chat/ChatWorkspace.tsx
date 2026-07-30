@@ -47,8 +47,9 @@ export function ChatWorkspace() {
   } = useWorkspaceLayoutStore()
 
   const [messages, setMessages] = useState<MessageProps[]>([])
-  const [activeSources, setActiveSources] = useState<any[]>([])
-  const [activeEntities, setActiveEntities] = useState<any[]>([])
+  const [activeSources, setActiveSources] = useState<Source[]>([])
+  const [activeEntities, setActiveEntities] = useState<Entity[]>([])
+  const [activeRelationships, setActiveRelationships] = useState<Relationship[]>([])
   const [activeTab, setActiveTab] = useState<Tab>('sources')
   
   // Read documentId passed from URL query
@@ -146,7 +147,11 @@ export function ChatWorkspace() {
 
   useEffect(() => {
     if (rightPanelOpen) {
-      rightPanelRef.current?.expand()
+      if (rightPanelRef.current?.getSize() === 0) {
+        rightPanelRef.current?.resize(35)
+      } else {
+        rightPanelRef.current?.expand()
+      }
     } else {
       rightPanelRef.current?.collapse()
     }
@@ -232,6 +237,7 @@ export function ChatWorkspace() {
       
       setActiveSources(response.retrieved_chunks || [])
       setActiveEntities(response.graph_entities || [])
+      setActiveRelationships(response.graph_relationships || [])
       
       if (!rightPanelOpen && (response.retrieved_chunks?.length || response.graph_entities?.length)) {
          setRightPanelOpen(true)
@@ -294,6 +300,7 @@ export function ChatWorkspace() {
       
       setActiveSources(response.retrieved_chunks || [])
       setActiveEntities(response.graph_entities || [])
+      setActiveRelationships(response.graph_relationships || [])
       
       const answer = response.answer || ""
       
@@ -484,7 +491,7 @@ export function ChatWorkspace() {
         <div className="flex-1 overflow-hidden bg-white">
           {activeTab === 'sources' && <SourcesPane sources={activeSources} onSourceClick={handleSourceClick} />}
           {activeTab === 'document' && <AdvancedDocumentPane documentId={activeDocumentId} highlightText={highlightText} initialPage={initialPage} />}
-          {activeTab === 'graph' && <GraphPane entities={activeEntities} />}
+          {activeTab === 'graph' && <GraphPane entities={activeEntities} relationships={activeRelationships} />}
         </div>
       </Panel>
     </PanelGroup>

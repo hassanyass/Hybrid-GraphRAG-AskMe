@@ -42,11 +42,6 @@ export function WorkspaceHeader({
          <h1 className="text-[15px] font-bold text-foreground tracking-tight truncate min-w-0">
            {workspaceName}
          </h1>
-         <div className="hidden md:flex items-center gap-4 text-xs font-medium text-neutral-dark/80 shrink-0">
-            <span className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-accent" /> {documentCount} Documents</span>
-            <span className="flex items-center gap-1.5"><Database className="w-3.5 h-3.5 text-accent" /> {chunkCount} Chunks</span>
-            <span className="flex items-center gap-1.5"><LinkIcon className="w-3.5 h-3.5 text-accent" /> {entityCount} Entities</span>
-         </div>
       </div>
       
       <div className="flex items-center gap-4">
